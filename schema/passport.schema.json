@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schema.athlytica.io/scouting-passport/v1.0.0/passport.schema.json",
+  "title": "Athlytica Scouting Passport",
+  "description": "Verifiable Athlete Infrastructure (VAI) canonical record. Sport-agnostic core; sport-specific data enters via the extensible metrics plugin point (see SportProfile.metrics), not via schema forks.",
+  "type": "object",
+  "required": ["passport_id", "schema_version", "athlete", "audit_trail"],
+  "additionalProperties": false,
+  "properties": {
+    "passport_id": { "type": "string", "format": "uuid", "description": "Primary portable athlete identifier. Immutable." },
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "issued_by": { "type": "string", "description": "Org (club/federation/Athlytica) that instantiated this passport export." },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "athlete": { "$ref": "#/$defs/Athlete" },
+    "sport_profiles": {
+      "type": "array",
+      "description": "One entry per sport the athlete competes in. Sole extensibility surface for adding new sports (e.g. NRHL inline hockey) without modifying core schema.",
+      "items": { "$ref": "#/$defs/SportProfile" },
+      "minItems": 0
+    },
+    "biometric_records": {
+      "type": "array",
+      "description": "Longitudinal growth-curve series. USE CASE: CAF/FIFA bone-age dispute defense requires a continuous series from age ~10-11 onward. PII/SENSITIVE: minor biometric/medical-adjacent data, flagged for DPA special-category review.",
+      "items": { "$ref": "#/$defs/BiometricRecord" }
+    },
+    "custody_history": {
+      "type": "array",
+      "description": "Club/federation registration history by age-band. USE CASE: direct input to FIFA Article 21 / Annex 5 solidarity claims.",
+      "items": { "$ref": "#/$defs/CustodyRecord" }
+    },
+    "performance_records": {
+      "type": "array",
+      "description": "Meet/match-level results, queryable at metric granularity. USE CASE: standardizes fragmented PDF result sheets for Caribbean sprint / East African distance running.",
+      "items": { "$ref": "#/$defs/PerformanceRecord" }
+    },
+    "injury_medical_history": {
+      "type": "array",
+      "description": "USE CASE: insurer actuarial baseline for catastrophic injury/career insurance. PII/SENSITIVE: special-category medical data.",
+      "items": { "$ref": "#/$defs/InjuryRecord" }
+    },
+    "representation_claims": {
+      "type": "array",
+      "description": "USE CASE: agent/agency defense of first-contact and representation claims.",
+      "items": { "$ref": "#/$defs/RepresentationClaim" }
+    },
+    "audit_trail": {
+      "type": "array",
+      "description": "Append-only, hash-chained event log. Tamper-evidence mechanism — not immutability.",
+      "items": { "$ref": "#/$defs/AuditEvent" },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "Provenance": {
+      "type": "object",
+      "description": "Attached at record level as a first-class concept. Every mutable record carries one.",
+      "required": ["provenance_id", "data_source", "entered_by", "entered_at", "verification_status"],
+      "properties": {
+        "provenance_id": { "type": "string", "format": "uuid" },
+        "data_source": { "type": "string", "enum": ["self_reported", "club_official", "federation_official", "independent_clinic", "agent_submission", "witness_attestation", "video_verified", "insurer_medical_exam", "government_id_registry"] },
+        "entered_by": { "type": "object", "required": ["actor_id", "actor_role"], "properties": { "actor_id": { "type": "string", "format": "uuid" }, "actor_role": { "type": "string", "enum": ["club_admin", "federation_admin", "agent", "clinician", "athlete", "guardian", "athlytica_ops", "insurer_underwriter"] } } },
+        "entered_at": { "type": "string", "format": "date-time" },
+        "verified_by": { "type": ["object", "null"], "properties": { "verifier_id": { "type": "string", "format": "uuid" }, "verifier_org": { "type": "string" }, "verified_at": { "type": "string", "format": "date-time" } } },
+        "verification_method": { "type": "string", "enum": ["document_check", "biometric_lab_cross_reference", "witness_corroboration", "federation_registry_match", "hash_anchor_confirmation", "government_id_check", "none"] },
+        "verification_status": { "type": "string", "enum": ["unverified", "pending", "verified", "disputed", "revoked"], "description": "Downstream consumers should treat 'verified' as minimum admissible status for financial/legal claims." },
+        "confidence_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "source_document_hash": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$", "description": "SHA-256 of the underlying source document — tamper-evidence anchor, not the document itself." },
+        "witness_ids": { "type": "array", "items": { "type": "string", "format": "uuid" } }
+      }
+    },
+    "Athlete": {
+      "type": "object",
+      "required": ["athlete_id", "date_of_birth", "primary_sport_code", "provenance"],
+      "properties": {
+        "athlete_id": { "type": "string", "format": "uuid" },
+        "legal_name": { "type": "string", "description": "PII: direct identifier. Encrypt at rest / mask in public schema samples." },
+        "preferred_name": { "type": "string" },
+        "date_of_birth": { "type": "string", "format": "date", "description": "PII: especially sensitive when athlete is a minor at record-creation (common case, ages 10-11 entry)." },
+        "sex_at_birth": { "type": "string", "enum": ["male", "female", "intersex", "undisclosed"] },
+        "nationalities": { "type": "array", "items": { "type": "string", "pattern": "^[A-Z]{3}$" } },
+        "national_id_reference": { "type": ["string", "null"], "description": "PII/SENSITIVE: salted hash reference only, never raw national ID." },
+        "guardian_contacts": {
+          "type": "array",
+          "description": "Required for minors under most youth-sport safeguarding/DPA parental-consent regimes.",
+          "items": { "type": "object", "properties": { "guardian_id": { "type": "string", "format": "uuid" }, "relationship": { "type": "string", "enum": ["parent", "legal_guardian", "club_appointed_guardian"] }, "consent_on_file": { "type": "boolean" }, "consent_date": { "type": "string", "format": "date" } }, "required": ["guardian_id", "relationship", "consent_on_file"] }
+        },
+        "current_status": { "type": "string", "enum": ["active", "inactive", "retired", "suspended", "deceased"] },
+        "primary_sport_code": { "type": "string", "pattern": "^[a-z0-9_]+$", "description": "References sport_taxonomy.sport_code — the extensibility hook that lets NRHL/ice-hockey and any future sport register without a schema version bump." },
+        "provenance": { "$ref": "#/$defs/Provenance" }
+      }
+    },
+    "MetricValue": {
+      "type": "object",
+      "description": "Generic typed metric container — THE plugin mechanism for multi-sport extensibility.",
+      "required": ["metric_code", "value", "unit", "measured_at"],
+      "properties": {
+        "metric_code": { "type": "string", "pattern": "^[a-z0-9_]+\\.[a-z0-9_]+$", "description": "Namespaced '{sport_code}.{metric_name}', e.g. 'ice_hockey.shot_speed_kmh'. Validated against metric_registry, not against this schema." },
+        "value": { "type": "number" },
+        "unit": { "type": "string" },
+        "measured_at": { "type": "string", "format": "date-time" },
+        "context": { "type": "string", "enum": ["in_competition", "combine_test", "training_session", "medical_exam"] },
+        "provenance": { "$ref": "#/$defs/Provenance" }
+      }
+    },
+    "SportProfile": {
+      "type": "object",
+      "required": ["sport_code", "provenance"],
+      "properties": {
+        "sport_profile_id": { "type": "string", "format": "uuid" },
+        "sport_code": { "type": "string", "pattern": "^[a-z0-9_]+$", "examples": ["football", "ice_hockey", "inline_hockey", "athletics_sprint", "athletics_distance"] },
+        "discipline_code": { "type": ["string", "null"] },
+        "role_position": { "type": "string" },
+        "dominant_side": { "type": ["string", "null"], "enum": ["left", "right", "ambidextrous", null] },
+        "metrics": { "type": "array", "items": { "$ref": "#/$defs/MetricValue" } },
+        "provenance": { "$ref": "#/$defs/Provenance" }
+      }
+    },
+    "BiometricRecord": {
+      "type": "object",
+      "required": ["record_id", "measured_at", "age_at_measurement_years", "provenance"],
+      "properties": {
+        "record_id": { "type": "string", "format": "uuid" },
+        "measured_at": { "type": "string", "format": "date" },
+        "age_at_measurement_years": { "type": "number", "minimum": 0, "maximum": 60 },
+        "height_cm": { "type": "number" },
+        "weight_kg": { "type": "number" },
+        "bone_age_estimate_years": { "type": ["number", "null"], "description": "A single value is weak evidence; the longitudinal array is the actual defense artifact." },
+        "bone_age_method": { "type": ["string", "null"], "enum": ["greulich_pyle", "tw3", "tw2", "other", null] },
+        "tanner_stage": { "type": ["integer", "null"], "minimum": 1, "maximum": 5, "description": "PII/SENSITIVE: pubertal-development marker. Highest-sensitivity field in the schema for minor athletes; must be access-scoped to medical/verification roles only. Never foreground as a marketing feature." },
+        "measurement_method": { "type": "string", "enum": ["self_reported", "club_medical_staff", "independent_clinic", "federation_medical_panel"] },
+        "examiner_id": { "type": ["string", "null"], "format": "uuid" },
+        "provenance": { "$ref": "#/$defs/Provenance" }
+      }
+    },
+    "CustodyRecord": {
+      "type": "object",
+      "required": ["custody_id", "club_id", "registration_type", "start_date", "provenance"],
+      "properties": {
+        "custody_id": { "type": "string", "format": "uuid" },
+        "club_id": { "type": "string", "format": "uuid" },
+        "federation_id": { "type": ["string", "null"], "format": "uuid" },
+        "registration_type": { "type": "string", "enum": ["first_registration", "amateur", "professional", "loan", "transfer_permanent", "transfer_temporary"] },
+        "start_date": { "type": "string", "format": "date" },
+        "end_date": { "type": ["string", "null"], "format": "date" },
+        "age_band": { "type": ["string", "null"], "enum": ["under_12_ineligible", "12_15", "16_23", "over_23_ineligible", null], "description": "Directly determines FIFA Annex 5 solidarity rate — 0.25%/yr for 12_15, 0.5%/yr for 16_23. Computed server-side." },
+        "is_training_club": { "type": "boolean", "description": "Annex 5 eligibility flag." },
+        "transfer_id": { "type": ["string", "null"], "format": "uuid" },
+        "provenance": { "$ref": "#/$defs/Provenance" }
+      }
+    },
+    "PerformanceRecord": {
+      "type": "object",
+      "required": ["record_id", "event_date", "sport_code", "metrics", "provenance"],
+      "properties": {
+        "record_id": { "type": "string", "format": "uuid" },
+        "competition_event_id": { "type": ["string", "null"], "format": "uuid" },
+        "competition_name": { "type": "string" },
+        "competition_level": { "type": "string", "enum": ["club", "regional", "national", "continental", "international"] },
+        "event_date": { "type": "string", "format": "date" },
+        "sport_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "discipline_code": { "type": ["string", "null"] },
+        "placement": { "type": ["integer", "null"] },
+        "metrics": { "type": "array", "items": { "$ref": "#/$defs/MetricValue" } },
+        "video_evidence_hash": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+        "provenance": { "$ref": "#/$defs/Provenance" }
+      }
+    },
+    "InjuryRecord": {
+      "type": "object",
+      "required": ["record_id", "injury_date", "severity", "provenance"],
+      "properties": {
+        "record_id": { "type": "string", "format": "uuid" },
+        "injury_date": { "type": "string", "format": "date" },
+        "injury_type": { "type": "string" },
+        "icd10_code": { "type": ["string", "null"] },
+        "body_region": { "type": "string" },
+        "severity": { "type": "string", "enum": ["minor", "moderate", "severe", "career_threatening"] },
+        "mechanism": { "type": ["string", "null"] },
+        "days_lost": { "type": ["integer", "null"] },
+        "return_to_play_date": { "type": ["string", "null"], "format": "date" },
+        "recurrence_flag": { "type": "boolean" },
+        "treating_clinician_id": { "type": ["string", "null"], "format": "uuid" },
+        "workload_context": { "type": "object", "properties": { "training_hours_last_4wk": { "type": "number" }, "match_count_last_90d": { "type": "integer" } } },
+        "provenance": { "$ref": "#/$defs/Provenance" }
+      }
+    },
+    "RepresentationClaim": {
+      "type": "object",
+      "required": ["claim_id", "agent_id", "claim_type", "claimed_at", "provenance"],
+      "properties": {
+        "claim_id": { "type": "string", "format": "uuid" },
+        "agent_id": { "type": "string", "format": "uuid" },
+        "agency_id": { "type": ["string", "null"], "format": "uuid" },
+        "claim_type": { "type": "string", "enum": ["first_contact", "representation_agreement", "negotiation_mandate", "termination"] },
+        "claimed_at": { "type": "string", "format": "date-time", "description": "Timestamp is the entire evidentiary value — defends priority against a rival agent's competing claim." },
+        "effective_from": { "type": ["string", "null"], "format": "date" },
+        "effective_to": { "type": ["string", "null"], "format": "date" },
+        "contract_reference_hash": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$", "description": "Hash of underlying contract; raw contract stored off-schema." },
+        "dispute_status": { "type": "string", "enum": ["none", "contested", "resolved_upheld", "resolved_overturned"] },
+        "provenance": { "$ref": "#/$defs/Provenance" }
+      }
+    },
+    "AuditEvent": {
+      "type": "object",
+      "description": "Hash-chained append-only ledger entry. event_hash = SHA256(prev_event_hash || canonical_json(event_payload)).",
+      "required": ["event_id", "event_type", "actor_id", "occurred_at", "record_type", "record_id", "prev_event_hash", "event_hash"],
+      "properties": {
+        "event_id": { "type": "string", "format": "uuid" },
+        "event_type": { "type": "string", "enum": ["record_created", "record_updated", "record_verified", "record_disputed", "record_revoked"] },
+        "actor_id": { "type": "string", "format": "uuid" },
+        "occurred_at": { "type": "string", "format": "date-time" },
+        "record_type": { "type": "string", "enum": ["athlete", "sport_profile", "biometric_record", "custody_record", "performance_record", "injury_record", "representation_claim"] },
+        "record_id": { "type": "string", "format": "uuid" },
+        "prev_event_hash": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+        "event_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    }
+  }
+}

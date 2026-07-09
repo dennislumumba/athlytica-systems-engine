@@ -1,0 +1,2 @@
+- [Athlytica pipeline role & financial model snapshot](project_athlytica_pipeline.md) — Agent 2/10, unit economics model built from Agent 1 research, tiers/success-fees/funnel/revenue targets as of 2026-07-08
+- [Founder: Dennis Lumumba Mukhavani](user_dennis_founder.md) — economics/stats background, wants traceable rigor and honest flagging of weak unit economics, not smoothed-over positivity

@@ -1,0 +1,3 @@
+- [Athlytica venture pipeline overview](project_athlytica_pipeline.md) — 10-agent orchestration building investor-ready Athlytica/Big Ice/NRHL asset package
+- [User profile: Dennis Lumumba Mukhavani](user_dennis_profile.md) — founder/venture designer/systems architect, non-technical repo (not git-initialized)
+- [OSS schema deployment dependency chain](project_oss_schema_deployment_gap.md) — marketing copy references a download link/repo that does not exist yet

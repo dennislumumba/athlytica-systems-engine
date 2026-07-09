@@ -1,0 +1,4 @@
+- [Athlytica Pipeline Context](project_athlytica_pipeline.md) — 10-agent venture pipeline, founder, core value prop, B2B-only framing rule
+- [Founder Profile](user_founder_profile.md) — Dennis Lumumba Mukhavani, economics/statistics/elite athletics background
+- [Market & Economics Inputs](project_market_economics_inputs.md) — Agent 1/2 findings: named data voids, buyer fears, tier pricing feeding offer design
+- [Positioning Framework Decisions](project_positioning_framework.md) — locked category name, offer-stage names, taglines for downstream agent consistency
