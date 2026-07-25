@@ -1,0 +1,7 @@
+node_modules/
+.next/
+.env
+.env.local
+.venv/
+linkedin_profile/
+tsconfig.tsbuildinfo
