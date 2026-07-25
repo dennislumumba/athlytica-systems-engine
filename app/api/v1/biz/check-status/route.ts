@@ -17,8 +17,10 @@ export const dynamic = "force-dynamic";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(request: NextRequest) {
-  const registrationId = request.nextUrl.searchParams.get("registrationId");
-  const checkoutRequestId = request.nextUrl.searchParams.get("checkoutRequestId");
+  const params = request.nextUrl.searchParams;
+  const registrationId = params.get("registrationId") ?? params.get("registration_id");
+  const checkoutRequestId =
+    params.get("checkoutRequestId") ?? params.get("checkout_request_id");
 
   if (!registrationId && !checkoutRequestId) {
     return NextResponse.json(

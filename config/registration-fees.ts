@@ -59,6 +59,11 @@ export const REGISTRATION_TIERS = {
     venture: "NRHL",
     label: "Acceleration Program",
   },
+  enterprise_150k: {
+    amountKes: 150_000,
+    venture: "ATHLYTICA",
+    label: "Institutional / Campus License",
+  },
 } as const satisfies Record<
   string,
   { amountKes: number; venture: VentureContext; label: string }

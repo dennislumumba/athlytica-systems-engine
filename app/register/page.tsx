@@ -38,6 +38,13 @@ const TIERS = [
     amountKes: 45_000,
     blurb: "Combine entry + 3-to-8 coaching pod acceleration track.",
   },
+  {
+    id: "enterprise_150k",
+    label: "Institutional / Campus License",
+    brand: "Athlytica",
+    amountKes: 150_000,
+    blurb: "Turnkey school & campus program: coaching staff, telemetry, gear.",
+  },
 ] as const;
 
 type TierId = (typeof TIERS)[number]["id"];
@@ -59,8 +66,11 @@ type Phase =
       amountKes: number;
       stkDispatched: boolean;
     }
-  | { name: "paid"; receipt: string | null }
+  | { name: "paid"; receipt: string | null; accountReference: string }
   | { name: "error"; message: string };
+
+/** Post-payment onboarding hand-off target. */
+const ONBOARDING_URL = "https://app.athlyticahq.com/nrhl/welcome";
 
 const card: React.CSSProperties = {
   background: "#111a2c",
@@ -114,7 +124,7 @@ function RegisterForm() {
     };
   }, []);
 
-  function startPolling(registrationId: string) {
+  function startPolling(registrationId: string, accountReference: string) {
     if (pollTimer.current) clearInterval(pollTimer.current);
     pollTimer.current = setInterval(async () => {
       try {
@@ -125,13 +135,22 @@ function RegisterForm() {
         const body = (await res.json()) as { status?: string; mpesaReceipt?: string | null };
         if (body.status === "PAID") {
           if (pollTimer.current) clearInterval(pollTimer.current);
-          setPhase({ name: "paid", receipt: body.mpesaReceipt ?? null });
+          setPhase({ name: "paid", receipt: body.mpesaReceipt ?? null, accountReference });
         }
       } catch {
         // transient poll failure — next tick retries
       }
     }, POLL_INTERVAL_MS);
   }
+
+  // Hand off to the onboarding dashboard shortly after payment confirms.
+  useEffect(() => {
+    if (phase.name !== "paid") return;
+    const t = setTimeout(() => {
+      window.location.href = ONBOARDING_URL;
+    }, 8_000);
+    return () => clearTimeout(t);
+  }, [phase.name]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -175,7 +194,7 @@ function RegisterForm() {
         amountKes: body.amountKes ?? selected.amountKes,
         stkDispatched: body.stkPush?.dispatched ?? false,
       });
-      startPolling(body.registrationId);
+      startPolling(body.registrationId, body.accountReference ?? "—");
     } catch {
       setPhase({ name: "error", message: "Network error — please try again." });
     }
@@ -333,49 +352,76 @@ function RegisterForm() {
           >
             {phase.name === "pushing"
               ? "Sending M-Pesa prompt…"
-              : `Pay ${kes(selected.amountKes)} via M-Pesa STK Push`}
+              : `Complete Registration via M-Pesa — ${kes(selected.amountKes)}`}
           </button>
         </form>
       ) : null}
 
-      {phase.name === "awaiting_pin" && (
-        <section style={{ ...card, marginTop: 20 }} aria-live="polite">
-          <h2 style={{ marginTop: 0, fontSize: 18 }}>
-            {phase.stkDispatched
-              ? "Check your phone and enter your M-Pesa PIN…"
-              : "Complete payment via Paybill"}
-          </h2>
-          <p style={{ color: "#9fb1c9", fontSize: 14 }}>
-            {phase.stkDispatched
-              ? `A prompt for ${kes(phase.amountKes)} has been sent to your handset. This page updates automatically once payment lands.`
-              : `The automatic prompt could not be sent — use the manual Paybill option below. This page updates automatically once payment lands.`}
-          </p>
-          <div
-            style={{
-              border: "1px dashed #3a4f74",
-              borderRadius: 10,
-              padding: 14,
-              fontSize: 14,
-              lineHeight: 1.7,
-            }}
-          >
-            <strong>Manual Paybill option</strong>
-            <br />
-            Paybill Business No: <strong>{PAYBILL}</strong>
-            <br />
-            Account No: <strong>{phase.accountReference}</strong>
-            <br />
-            Amount: <strong>{kes(phase.amountKes)}</strong>
-            <br />
-            <em style={{ color: "#9fb1c9" }}>
-              Manual payments are verified automatically within ~2 minutes via
-              backend webhook matching.
-            </em>
+      {/* Full-screen STK overlay while the registrant enters their PIN */}
+      {(phase.name === "pushing" || phase.name === "awaiting_pin") && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(4, 8, 16, 0.88)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+            zIndex: 50,
+          }}
+        >
+          <div style={{ ...card, maxWidth: 480, width: "100%" }}>
+            <h2 style={{ marginTop: 0, fontSize: 19 }}>
+              {phase.name === "pushing" || phase.stkDispatched
+                ? "Prompting your phone…"
+                : "Complete payment via Paybill"}
+            </h2>
+            <p style={{ color: "#9fb1c9", fontSize: 14 }}>
+              {phase.name === "pushing"
+                ? `Contacting Safaricom — the M-Pesa prompt for Paybill ${PAYBILL} is on its way.`
+                : phase.stkDispatched
+                  ? `Please enter your M-Pesa PIN for Paybill ${PAYBILL}. A prompt for ${kes(phase.amountKes)} has been sent to your handset. This screen updates automatically once payment lands.`
+                  : `The automatic prompt could not be sent — use the manual Paybill option below. This screen updates automatically once payment lands.`}
+            </p>
+            {phase.name === "awaiting_pin" && (
+              <>
+                <details
+                  open={!phase.stkDispatched}
+                  style={{
+                    border: "1px dashed #3a4f74",
+                    borderRadius: 10,
+                    padding: "10px 14px",
+                    fontSize: 14,
+                    lineHeight: 1.7,
+                  }}
+                >
+                  <summary style={{ cursor: "pointer", fontWeight: 700 }}>
+                    Didn&apos;t receive the prompt? Pay manually
+                  </summary>
+                  Go to M-Pesa → Lipa na M-Pesa → Paybill
+                  <br />
+                  Paybill Business No: <strong>{PAYBILL}</strong>
+                  <br />
+                  Account No: <strong>{phase.accountReference}</strong>
+                  <br />
+                  Amount: <strong>{kes(phase.amountKes)}</strong>
+                  <br />
+                  <em style={{ color: "#9fb1c9" }}>
+                    Manual payments are verified automatically within ~2 minutes
+                    via backend webhook matching.
+                  </em>
+                </details>
+                <p style={{ fontSize: 13, color: "#5f7392", marginBottom: 0 }}>
+                  Waiting for confirmation… (checking every 3 seconds)
+                </p>
+              </>
+            )}
           </div>
-          <p style={{ fontSize: 13, color: "#5f7392" }}>
-            Waiting for confirmation… (checking every 3 seconds)
-          </p>
-        </section>
+        </div>
       )}
 
       {phase.name === "paid" && (
@@ -384,15 +430,23 @@ function RegisterForm() {
             Payment confirmed 🎉
           </h2>
           <p style={{ fontSize: 15, lineHeight: 1.6 }}>
+            Athlete reference code: <strong>{phase.accountReference}</strong>
             {phase.receipt && (
               <>
-                M-Pesa receipt: <strong>{phase.receipt}</strong>
                 <br />
+                M-Pesa receipt: <strong>{phase.receipt}</strong>
               </>
             )}
+            <br />
             Your athlete&apos;s Scouting Passport is being provisioned and a
             coaching pod assignment is underway. Portal access details will
             arrive by email shortly.
+          </p>
+          <p style={{ fontSize: 14, color: "#9fb1c9" }}>
+            Redirecting you to the onboarding dashboard…{" "}
+            <a href={ONBOARDING_URL} style={{ color: "#4ade80" }}>
+              Continue now →
+            </a>
           </p>
         </section>
       )}
