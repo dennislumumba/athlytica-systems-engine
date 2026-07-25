@@ -1,0 +1,28 @@
+# Never upload local secrets — env vars are provisioned in the Vercel dashboard.
+.env*
+!.env.example
+
+# Build artifacts & deps (rebuilt server-side)
+node_modules
+.next
+.venv
+tsconfig.tsbuildinfo
+
+# Non-app workspace content (not part of the Next build)
+.agentic-os
+.claude
+Hercules schema
+apps-script
+brand-nrhl
+content
+convex
+core-engine
+linkedin_profile
+outputs
+prisma
+scripts
+supabase/.temp
+review_drafts.json
+linkedin_outbound.py
+test_slack.py
+*.md
