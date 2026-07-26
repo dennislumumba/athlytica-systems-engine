@@ -9,9 +9,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+// Browser client: the session MUST persist and refresh, otherwise every
+// consumer of auth.getUser() (coach console, parent portal, workspace
+// shell) loses its identity on the first reload and every magic-link
+// return lands unauthenticated. Server routes never import this module —
+// they build their own service-role clients.
 export const supabaseClient: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: false,
-    autoRefreshToken: false,
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
   },
 });

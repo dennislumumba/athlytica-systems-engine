@@ -39,7 +39,10 @@ const payloadSchema = z
       .refine((v) => normalizeKenyanMsisdn(v) !== null, {
         message: "expected a Kenyan mobile number, e.g. 07XXXXXXXX or 2547XXXXXXXX",
       }),
-    tier: z.enum(REGISTRATION_TIER_IDS as [string, ...string[]]),
+    tier: z.enum(REGISTRATION_TIER_IDS as [string, ...string[]]).optional(),
+    // Big Ice academy packages price from public.commercial_price_tier
+    // instead of the code-level tier table — same server-priced law.
+    priceTierId: z.string().uuid().optional(),
     athleteName: z.string().trim().min(2).max(120),
     parentName: z.string().trim().min(2).max(120).optional(),
     parentEmail: z.string().trim().toLowerCase().email().max(254),
@@ -49,7 +52,11 @@ const payloadSchema = z
     // Display-only echo from the client; verified against the tier table.
     amount: z.number().positive().finite().optional(),
   })
-  .strict();
+  .strict()
+  .refine((v) => (v.tier === undefined) !== (v.priceTierId === undefined), {
+    message: "provide exactly one of tier or priceTierId",
+    path: ["tier"],
+  });
 
 function adminClient() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -99,14 +106,52 @@ export async function POST(request: NextRequest) {
   }
   const input = parsed.data;
 
-  // Server-priced tier — reject a client amount that disagrees.
-  const tier = REGISTRATION_TIERS[input.tier as keyof typeof REGISTRATION_TIERS];
+  const supabase = adminClient();
+
+  // Server-priced tier. Two price sources, one law: the charge is
+  // derived here, never taken from the payload.
+  let tier: { amountKes: number; venture: string; label: string };
+  let tierId: string;
+
+  if (input.priceTierId) {
+    const { data: priceRow, error: priceErr } = await supabase
+      .from("commercial_price_tier")
+      .select("tier_id, tier_name, price_amount, tier_group, is_active")
+      .eq("tier_id", input.priceTierId)
+      .eq("tier_group", "academy")
+      .eq("is_active", true)
+      .maybeSingle<{ tier_id: string; tier_name: string; price_amount: number | string }>();
+    if (priceErr) {
+      return NextResponse.json(
+        { success: false, status: "SERVER_ERROR", error: "Package lookup failed." },
+        { status: 500 },
+      );
+    }
+    const priceKes = Number(priceRow?.price_amount ?? NaN);
+    if (!priceRow || !Number.isFinite(priceKes) || priceKes <= 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          status: "INPUT_REJECTED",
+          error: "Unknown or inactive academy package.",
+        },
+        { status: 422 },
+      );
+    }
+    tier = { amountKes: priceKes, venture: "BIG_ICE", label: priceRow.tier_name };
+    tierId = `academy_${priceRow.tier_id}`;
+  } else {
+    const table = REGISTRATION_TIERS[input.tier as keyof typeof REGISTRATION_TIERS];
+    tier = { amountKes: table.amountKes, venture: table.venture, label: table.label };
+    tierId = input.tier!;
+  }
+
   if (input.amount !== undefined && input.amount !== tier.amountKes) {
     return NextResponse.json(
       {
         success: false,
         status: "INPUT_REJECTED",
-        error: `Amount mismatch: ${input.tier} is KES ${tier.amountKes}.`,
+        error: `Amount mismatch: ${tier.label} is KES ${tier.amountKes}.`,
       },
       { status: 422 },
     );
@@ -127,8 +172,6 @@ export async function POST(request: NextRequest) {
   }
   const msisdn = normalizeKenyanMsisdn(input.phoneNumber)!; // refined above
   const msisdnHash = await hmacSha256Hex(hashKey, msisdn);
-
-  const supabase = adminClient();
 
   // Idempotent session resolution on the phone-identity index.
   const { data: existing, error: existingErr } = await supabase
@@ -167,7 +210,7 @@ export async function POST(request: NextRequest) {
         full_name: input.parentName ?? input.athleteName,
         email: input.parentEmail,
         athlete_name: input.athleteName,
-        tier: input.tier,
+        tier: tierId,
         preferred_campus: input.preferredCampus ?? null,
         venture_context: tier.venture,
         amount_expected_kes: amountKes,
@@ -188,7 +231,7 @@ export async function POST(request: NextRequest) {
           full_name: input.parentName ?? input.athleteName,
           email: input.parentEmail,
           athlete_name: input.athleteName,
-          tier: input.tier,
+          tier: tierId,
           preferred_campus: input.preferredCampus ?? null,
           venture_context: tier.venture,
           amount_expected_kes: amountKes,
@@ -245,7 +288,7 @@ export async function POST(request: NextRequest) {
       amountKes,
       msisdn,
       accountReference: accountReference!,
-      description: `${tier.venture} ${input.tier.split("_")[0]}`,
+      description: `${tier.venture} ${tier.label}`.slice(0, 60),
     });
     if (result.dispatched) {
       stk = { dispatched: true };
@@ -269,7 +312,7 @@ export async function POST(request: NextRequest) {
       checkoutRequestId,
       accountReference: accountReference!,
       amountKes,
-      tier: input.tier,
+      tier: tierId,
       stkPush: stk.dispatched
         ? { dispatched: true }
         : { dispatched: false, fallback: "MANUAL_PAYBILL", reason: stk.reason ?? "unknown" },
