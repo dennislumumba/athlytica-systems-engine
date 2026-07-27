@@ -1,0 +1,42 @@
+{
+  "generated_at": "2026-07-14T13:29:01.602Z",
+  "mode": "dry-run",
+  "scanned": 5,
+  "planned": 2,
+  "modified": [],
+  "planned_changes": [
+    {
+      "athlete_id": "uuid-1",
+      "legal_name": "Legacy Kid A",
+      "old_passport_id": "ATH-020",
+      "new_passport_id": "ATH-2024-0020",
+      "created_at": "2024-06-01T10:00:00Z",
+      "year_source": "created_at"
+    },
+    {
+      "athlete_id": "uuid-3",
+      "legal_name": "Legacy Kid B",
+      "old_passport_id": "ATH-31",
+      "new_passport_id": "ATH-2025-0031",
+      "created_at": null,
+      "year_source": "default_2025"
+    }
+  ],
+  "skipped": [
+    {
+      "athlete_id": "uuid-4",
+      "reason": "NULL_PASSPORT_ID"
+    },
+    {
+      "athlete_id": "uuid-5",
+      "old_id": "LEGACY-XX",
+      "reason": "NO_NUMERIC_COUNTER"
+    }
+  ],
+  "failures": [],
+  "cascade_columns": {
+    "athlete_sports": null,
+    "athlete_coaches": null,
+    "athlete_metrics_log": null
+  }
+}

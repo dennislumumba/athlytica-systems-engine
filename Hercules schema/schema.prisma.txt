@@ -1,0 +1,98 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users              User[]
+  venues             Venue[]
+  athleteTenantLinks AthleteTenantLink[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  role      String   // "ADMIN" | "COACH" | "ATHLETE"
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  athlete   Athlete?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Athlete {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenantLinks     AthleteTenantLink[]
+  sessions        Session[]
+  performanceLogs PerformanceLog[]
+}
+
+model AthleteTenantLink {
+  id        String   @id @default(uuid())
+  athleteId String
+  athlete   Athlete  @relation(fields: [athleteId], references: [id])
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([athleteId, tenantId])
+  @@index([tenantId, athleteId])
+}
+
+model Venue {
+  id          String    @id @default(uuid())
+  name        String
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  coordinates Json      // Geo-spatial bounding boundaries for verification
+  sessions    Session[]
+  createdAt   DateTime  @default(now())
+}
+
+model Session {
+  id              String           @id @default(uuid())
+  athleteId       String
+  athlete         Athlete          @relation(fields: [athleteId], references: [id])
+  venueId         String
+  venue           Venue            @relation(fields: [venueId], references: [id])
+  startTime       DateTime         @default(now())
+  endTime         DateTime?
+  performanceLogs PerformanceLog[]
+  createdAt       DateTime         @default(now())
+}
+
+model PerformanceLog {
+  id        String   @id @default(uuid())
+  athleteId String
+  athlete   Athlete  @relation(fields: [athleteId], references: [id])
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id])
+  
+  // The Universal Metric Taxonomy Vectors (Normalized 1-100)
+  speed     Float
+  agility   Float
+  stamina   Float
+  technical Float
+  cognitive Float
+
+  // Polymorphic Telemetry Reference
+  rawPayload Json
+  createdAt  DateTime @default(now())
+
+  @@index([athleteId, createdAt])
+  @@index([sessionId])
+}

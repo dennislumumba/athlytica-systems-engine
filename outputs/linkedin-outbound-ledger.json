@@ -1,0 +1,25 @@
+{
+  "generatedAt": "2026-07-11T02:13:13.652Z",
+  "profiles": [
+    {
+      "name": "Sample Profile 1",
+      "title": "Sales Development Representative",
+      "company": "Example Co",
+      "id": 1
+    },
+    {
+      "name": "Sample Profile 2",
+      "title": "Business Development Representative",
+      "company": "Example Labs",
+      "id": 2
+    },
+    {
+      "name": "Sample Profile 3",
+      "title": "Account Executive",
+      "company": "Growth Ventures",
+      "id": 3
+    }
+  ],
+  "completedConnections": [],
+  "manualChecks": []
+}

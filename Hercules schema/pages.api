@@ -1,0 +1,108 @@
+import { NextApiRequest, NextApiResponse } from 'next';
+import { PrismaClient } from '@prisma/client';
+import * as z from 'zod';
+
+const prisma = new PrismaClient();
+
+// Polymorphic stream payload validation rules
+const TelemetryIngestionSchema = z.object({
+  tenantId: z.string().uuid(),
+  athleteId: z.string().uuid(),
+  sessionId: z.string().uuid(),
+  streamType: z.enum(['JSON_COORDINATES', 'CSV_SENSOR', 'IMU_PACKET', 'COACH_INTEL']),
+  payload: z.record(z.any()),
+});
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  try {
+    // 1. Data Contract Validation
+    const validatedData = TelemetryIngestionSchema.parse(req.body);
+    const { tenantId, athleteId, sessionId, streamType, payload } = validatedData;
+
+    // 2. Multi-Tenant Cross-Verification Barrier
+    const identityLink = await prisma.athleteTenantLink.findUnique({
+      where: {
+        athleteId_tenantId: { athleteId, tenantId },
+      },
+    });
+
+    if (!identityLink) {
+      return res.status(403).json({ error: 'Unauthorized: Athlete-Tenant boundary mismatch.' });
+    }
+
+    // 3. Verify Active Tracking Session
+    const activeSession = await prisma.session.findFirst({
+      where: { id: sessionId, athleteId },
+      include: { venue: true },
+    });
+
+    if (!activeSession) {
+      return res.status(404).json({ error: 'Target tracking session context not found.' });
+    }
+
+    // 4. Run Normalization Core (Universal Metric Taxonomy Calculations)
+    // This parses raw velocity, lateral metrics, and heart-rate loads into a 1-100 vector
+    const calculatedMetrics = calculateTaxonomyVectors(streamType, payload);
+
+    // 5. Immutable Append State Hydration
+    const savedLog = await prisma.performanceLog.create({
+      data: {
+        athleteId,
+        sessionId,
+        speed: calculatedMetrics.speed,
+        agility: calculatedMetrics.agility,
+        stamina: calculatedMetrics.stamina,
+        technical: calculatedMetrics.technical,
+        cognitive: calculatedMetrics.cognitive,
+        rawPayload: payload,
+      },
+    });
+
+    return res.status(201).json({
+      success: true,
+      logId: savedLog.id,
+      metrics: calculatedMetrics,
+    });
+
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid data payload configuration.', details: error.errors });
+    }
+    return res.status(500).json({ error: 'Internal Ingestion Engine Failure.', message: (error as Error).message });
+  }
+}
+
+// Analytics vector processing algorithm
+function calculateTaxonomyVectors(type: string, data: any) {
+  // Analytical processing defaults matching platform specifications
+  let speed = 50.0;
+  let agility = 50.0;
+  let stamina = 50.0;
+  let technical = 50.0;
+  let cognitive = 50.0;
+
+  switch (type) {
+    case 'JSON_COORDINATES':
+      // Extract position arrays and velocity metrics
+      speed = data.velocityMultiplier ? Math.min(Math.max(data.velocityMultiplier * 10, 1), 100) : 75.0;
+      agility = data.directionalChanges ? Math.min(data.directionalChanges * 12, 100) : 68.0;
+      break;
+    case 'CSV_SENSOR':
+    case 'IMU_PACKET':
+      // Extract G-force data, ground impacts, and explosive bursts
+      agility = data.gForceMax ? Math.min(data.gForceMax * 8, 100) : 82.0;
+      stamina = data.heartRateAverage ? (data.heartRateAverage / 200) * 100 : 70.0;
+      break;
+    case 'COACH_INTEL':
+      // Extract tactical markers and performance scores
+      technical = data.skillExecutionScore || 80.0;
+      cognitive = data.positionalAwarenessScore || 85.0;
+      break;
+  }
+
+  return { speed, agility, stamina, technical, cognitive };
+}

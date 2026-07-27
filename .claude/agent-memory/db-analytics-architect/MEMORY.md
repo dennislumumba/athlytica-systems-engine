@@ -1,0 +1,2 @@
+- [Athlytica VAI Pipeline Context](project_athlytica_vai_pipeline.md) — 10-agent venture pipeline, VAI positioning, 6 buyer segments for the scouting passport schema.
+- [Scouting Passport Schema Design Decisions](project_scouting_passport_schema_design.md) — v1.0.0 architecture: normalized provenance, taxonomy-driven multi-sport extensibility, hash-chained audit log, PII flags for legal review.

@@ -5,3 +5,6 @@ node_modules/
 .venv/
 linkedin_profile/
 tsconfig.tsbuildinfo
+
+.vercel
+.env*

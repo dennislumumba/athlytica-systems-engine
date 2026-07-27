@@ -1,0 +1,1 @@
+- [Athlytica Pipeline Context](project_athlytica_pipeline.md) — Agent 6 role in 10-agent venture pipeline; fixed names/taglines/guardrails for Athlytica/Big Ice/NRHL video content

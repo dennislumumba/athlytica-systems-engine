@@ -1,0 +1,4 @@
+- [Venture & Pipeline Context](project_venture_context.md) — Athlytica/Big Ice/NRHL, founder Dennis (Kenya), 10-agent pipeline, my role = Agent 5 legal/IP steward
+- [Schema Compliance Flags (Agent 4 handoff)](project_schema_compliance_flags.md) — tanner_stage/biometric/injury/cross-border flags raised on the Scouting Passport Schema, my determinations
+- [Kenya DPA 2019 Framework Notes](reference_kenya_dpa_framework.md) — key provisions used for compliance review, verify exact citations with counsel before public claims
+- [Founder Profile — Dennis](user_founder_profile.md) — Kenya-based founder, sports-data infra venture, values rigorous legal grounding over hedged generic disclaimers

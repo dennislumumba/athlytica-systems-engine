@@ -1,0 +1,107 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users              User[]
+  venues             Venue[]
+  athleteTenantLinks AthleteTenantLink[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  role      String   
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  athlete   Athlete?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Athlete {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenantLinks     AthleteTenantLink[]
+  sessions        Session[]
+  performanceLogs PerformanceLog[]
+}
+
+model AthleteTenantLink {
+  id        String   @id @default(uuid())
+  athleteId String
+  athlete   Athlete  @relation(fields: [athleteId], references: [id])
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([athleteId, tenantId])
+  @@index([tenantId, athleteId])
+}
+
+model Venue {
+  id          String    @id @default(uuid())
+  name        String
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  coordinates Json      
+  sessions    Session[]
+  createdAt   DateTime  @default(now())
+}
+
+model Session {
+  id              String           @id @default(uuid())
+  athleteId       String
+  athlete         Athlete          @relation(fields: [athleteId], references: [id])
+  venueId         String
+  venue           Venue            @relation(fields: [venueId], references: [id])
+  startTime       DateTime         @default(now())
+  endTime         DateTime?
+  performanceLogs PerformanceLog[]
+  createdAt       DateTime         @default(now())
+}
+
+model RegistrationSession {
+  id              String   @id @default(uuid())
+  phoneNumber     String   @unique 
+  fullName        String
+  email           String   @unique
+  ventureContext  String   
+  tenantId        String   
+  amountExpected  Float
+  status          String   
+  createdAt       DateTime @default(now())
+
+  @@index([phoneNumber])
+}
+
+model PerformanceLog {
+  id        String   @id @default(uuid())
+  athleteId String
+  athlete   Athlete  @relation(fields: [athleteId], references: [id])
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id])
+  speed     Float
+  agility   Float
+  stamina   Float
+  technical Float
+  cognitive Float
+  rawPayload Json
+  createdAt  DateTime @default(now())
+
+  @@index([athleteId, createdAt])
+  @@index([sessionId])
+}
