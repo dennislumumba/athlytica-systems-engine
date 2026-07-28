@@ -131,6 +131,127 @@ export function Stat({
   );
 }
 
+const toneColor = (tone: Tone) =>
+  tone === "good" ? theme.good : tone === "warn" ? theme.warn : tone === "bad" ? theme.bad : theme.accent;
+
+export type Tone = "neutral" | "good" | "warn" | "bad";
+
+/**
+ * Hero KPI card. Bigger than <Stat>, carries an optional progress meter
+ * and a delta line — the command canvas shows at most four.
+ */
+export function Kpi({
+  label,
+  value,
+  unit,
+  hint,
+  tone = "neutral",
+  meter,
+  delta,
+}: {
+  label: string;
+  value: string | number;
+  unit?: string;
+  hint?: string;
+  tone?: Tone;
+  meter?: number;
+  delta?: { value: string; tone?: Tone };
+}) {
+  const accent = toneColor(tone);
+  return (
+    <div
+      className="cmd-kpi"
+      style={{
+        background: `linear-gradient(160deg, ${theme.panel} 0%, ${theme.panelAlt} 100%)`,
+        border: `1px solid ${theme.border}`,
+        borderTop: `2px solid ${accent}`,
+        borderRadius: 14,
+        padding: "14px 16px",
+        minWidth: 0,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          textTransform: "uppercase",
+          letterSpacing: "0.16em",
+          color: theme.dim,
+          lineHeight: 1.4,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-0.02em", color: theme.text }}>
+          {value}
+        </span>
+        {unit && <span style={{ fontSize: 13, color: theme.muted }}>{unit}</span>}
+        {delta && (
+          <span style={{ fontSize: 12, fontWeight: 700, color: toneColor(delta.tone ?? "neutral") }}>
+            {delta.value}
+          </span>
+        )}
+      </div>
+      {typeof meter === "number" && <Meter value={meter} tone={tone} />}
+      {hint && (
+        <div style={{ fontSize: 12, color: theme.muted, marginTop: 8, lineHeight: 1.5 }}>{hint}</div>
+      )}
+    </div>
+  );
+}
+
+/** 0–100 progress meter with optional labelled reference marks. */
+export function Meter({
+  value,
+  tone = "neutral",
+  markers = [],
+}: {
+  value: number;
+  tone?: Tone;
+  markers?: Array<{ at: number; label: string }>;
+}) {
+  const clamped = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
+  const accent = toneColor(tone);
+  return (
+    <div
+      role="img"
+      aria-label={`${Math.round(clamped)} of 100${markers.length ? `, reference marks at ${markers.map((m) => `${m.label} ${m.at}`).join(", ")}` : ""}`}
+      style={{
+        position: "relative",
+        height: 8,
+        borderRadius: 999,
+        background: "#0a1120",
+        border: `1px solid ${theme.border}`,
+        marginTop: 10,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          width: `${clamped}%`,
+          height: "100%",
+          background: `linear-gradient(90deg, ${accent}66, ${accent})`,
+        }}
+      />
+      {markers.map((m) => (
+        <span
+          key={m.label}
+          title={`${m.label}: ${m.at}`}
+          style={{
+            position: "absolute",
+            left: `${Math.max(0, Math.min(100, m.at))}%`,
+            top: -2,
+            width: 2,
+            height: 12,
+            background: theme.text,
+            opacity: 0.55,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function Badge({
   children,
   tone = "neutral",

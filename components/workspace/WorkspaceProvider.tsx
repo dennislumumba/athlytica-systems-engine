@@ -43,6 +43,9 @@ export interface WorkspaceActor {
 interface WorkspaceContextValue {
   ready: boolean;
   actor: WorkspaceActor | null;
+  /** Access token for surfaces that fetch their own gated aggregate
+   *  (the command canvas), rather than the per-workspace payload. */
+  token: string | null;
   /** Workspaces the actor may enter, in canonical order. */
   available: WorkspaceId[];
   workspace: WorkspaceId | null;
@@ -223,6 +226,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     () => ({
       ready,
       actor,
+      token,
       available,
       workspace,
       setWorkspace,
@@ -239,6 +243,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [
       ready,
       actor,
+      token,
       available,
       workspace,
       setWorkspace,

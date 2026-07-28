@@ -13,8 +13,37 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { WORKSPACES, visibleNav, type WorkspaceId } from "@/config/workspaces";
+import {
+  MODE_BLURB,
+  MODE_LABEL,
+  modeFromPerspective,
+  panelsFor,
+  perspectiveFromMode,
+  type CommandMode,
+} from "@/config/command";
 import { useWorkspace } from "./WorkspaceProvider";
 import { buttonStyle, selectStyle, theme } from "./ui";
+
+// The shell is inline-styled like the rest of the app, so its one
+// responsive rule (sidebar → horizontal strip on tablets and phones)
+// ships as a scoped stylesheet. Widths live in CSS, not inline, because
+// an inline width would win over the media query.
+const SHELL_CSS = `
+.shell-body { display: flex; flex: 1; align-items: flex-start; }
+.shell-nav { width: 232px; flex-shrink: 0; padding: 20px 14px; position: sticky; top: 57px;
+  border-right: 1px solid ${theme.border}; }
+.shell-main { flex: 1; min-width: 0; padding: 20px 24px 40px; }
+.shell-tap { min-height: 40px; display: flex; align-items: center; }
+@media (max-width: 900px) {
+  .shell-body { flex-direction: column; }
+  .shell-nav { width: 100%; position: static; border-right: none;
+    border-bottom: 1px solid ${theme.border}; padding: 12px 14px; }
+  .shell-nav ul { grid-auto-flow: column; grid-auto-columns: max-content;
+    overflow-x: auto; padding-bottom: 4px; }
+  .shell-main { padding: 16px 14px 32px; }
+  .shell-tap { min-height: 44px; }
+}
+`;
 
 export function AppShell({ children }: { children: ReactNode }) {
   const {
@@ -57,9 +86,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const nav = workspace && role ? visibleNav(workspace, role, perspective) : [];
   const accent = workspace ? WORKSPACES[workspace].accent : theme.accent;
+  const mode: CommandMode = role === "GLOBAL_FOUNDER" ? modeFromPerspective(perspective) : "coach";
+  const commandPanels = role === "ATHLETE" ? [] : panelsFor(mode);
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <style>{SHELL_CSS}</style>
       {/* ---------------------------------------------------------- top */}
       <header
         style={{
@@ -98,7 +130,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {role === "GLOBAL_FOUNDER" && (
           <div
             role="group"
-            aria-label="Perspective"
+            aria-label="Operating mode"
             style={{
               display: "flex",
               border: `1px solid ${theme.border}`,
@@ -106,23 +138,27 @@ export function AppShell({ children }: { children: ReactNode }) {
               overflow: "hidden",
             }}
           >
-            {(["executive", "coach"] as const).map((p) => (
+            {(["founder", "coach"] as const).map((m) => (
               <button
-                key={p}
+                key={m}
                 type="button"
-                onClick={() => setPerspective(p)}
-                aria-pressed={perspective === p}
+                className="shell-tap"
+                onClick={() => setPerspective(perspectiveFromMode(m))}
+                aria-pressed={mode === m}
+                title={MODE_BLURB[m]}
                 style={{
                   ...buttonStyle,
                   border: "none",
                   borderRadius: 0,
                   padding: "6px 14px",
-                  textTransform: "capitalize",
-                  background: perspective === p ? accent : "transparent",
-                  color: perspective === p ? "#08111f" : theme.muted,
+                  fontSize: 12,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  background: mode === m ? (m === "founder" ? theme.warn : theme.accent) : "transparent",
+                  color: mode === m ? "#08111f" : theme.muted,
                 }}
               >
-                {p} view
+                {MODE_LABEL[m]}
               </button>
             ))}
           </div>
@@ -145,58 +181,32 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <div style={{ display: "flex", flex: 1, alignItems: "flex-start" }}>
+      <div className="shell-body">
         {/* ------------------------------------------------------ sidebar */}
-        <nav
-          style={{
-            width: 232,
-            flexShrink: 0,
-            padding: "20px 14px",
-            borderRight: `1px solid ${theme.border}`,
-            position: "sticky",
-            top: 57,
-          }}
-        >
-          <p
-            style={{
-              margin: "0 0 10px",
-              fontSize: 11,
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              color: theme.dim,
-            }}
-          >
-            {workspace ? WORKSPACES[workspace].short : ""} panels
-          </p>
-          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 4 }}>
-            {nav.map((item) => (
-              <li key={item.id}>
-                <a
-                  href={`#${item.id}`}
-                  style={{
-                    display: "block",
-                    padding: "8px 10px",
-                    borderRadius: 8,
-                    color: theme.muted,
-                    textDecoration: "none",
-                    fontSize: 13,
-                    borderLeft: `2px solid ${accent}55`,
-                  }}
-                >
-                  {item.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-          {role === "GLOBAL_FOUNDER" && perspective === "coach" && (
+        <nav className="shell-nav">
+          <NavGroup
+            heading={`${MODE_LABEL[mode]} canvas`}
+            accent={mode === "founder" ? theme.warn : theme.accent}
+            items={commandPanels.map((p) => ({ id: p.id, label: p.label, href: `/dashboard#${p.id}` }))}
+          />
+          <NavGroup
+            heading={`${workspace ? WORKSPACES[workspace].short : ""} deep dive`}
+            accent={accent}
+            items={nav.map((item) => ({
+              id: item.id,
+              label: item.label,
+              href: `/dashboard/venture#${item.id}`,
+            }))}
+          />
+          {role === "GLOBAL_FOUNDER" && mode === "coach" && (
             <p style={{ fontSize: 12, color: theme.dim, marginTop: 14, lineHeight: 1.6 }}>
-              Coach view active — financial and administration panels are hidden.
+              Head Coach Hub active — financial and administration panels are hidden.
             </p>
           )}
         </nav>
 
         {/* --------------------------------------------------------- main */}
-        <main style={{ flex: 1, padding: "20px 24px 40px", minWidth: 0 }}>
+        <main className="shell-main">
           {error && (
             <p
               role="alert"
@@ -235,7 +245,56 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Link href="/privacy" style={{ color: theme.muted }}>
           Privacy Policy
         </Link>
+        <span style={{ marginLeft: "auto" }}>Developer tools: Ctrl + Shift + D on the canvas</span>
       </footer>
     </div>
+  );
+}
+
+function NavGroup({
+  heading,
+  accent,
+  items,
+}: {
+  heading: string;
+  accent: string;
+  items: Array<{ id: string; label: string; href: string }>;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <>
+      <p
+        style={{
+          margin: "0 0 10px",
+          fontSize: 11,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: theme.dim,
+        }}
+      >
+        {heading}
+      </p>
+      <ul style={{ listStyle: "none", margin: "0 0 18px", padding: 0, display: "grid", gap: 4 }}>
+        {items.map((item) => (
+          <li key={item.id}>
+            <Link
+              href={item.href}
+              className="shell-tap"
+              style={{
+                padding: "8px 10px",
+                borderRadius: 8,
+                color: theme.muted,
+                textDecoration: "none",
+                fontSize: 13,
+                borderLeft: `2px solid ${accent}55`,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {item.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
