@@ -102,8 +102,16 @@ interface PerfRow {
   created_at: string | null;
 }
 
+interface PriceDriftRow {
+  label: string;
+  publishedKes: number;
+  chargedKes: number | null;
+}
+
 interface BigIcePayload {
   packages: PackageRow[];
+  priceDrift: PriceDriftRow[];
+  publishedPricing: { live: boolean; source: string };
   schedule: ScheduleRow[];
   balances: BalanceRow[];
   clients: ClientRow[];
@@ -123,6 +131,7 @@ export function BigIceDashboard() {
 
   const payload = (data ?? {}) as Partial<BigIcePayload>;
   const packages = payload.packages ?? [];
+  const priceDrift = payload.priceDrift ?? [];
   const schedule = payload.schedule ?? [];
   const balances = payload.balances ?? [];
   const clients = payload.clients ?? [];
@@ -167,6 +176,41 @@ export function BigIceDashboard() {
           title="Big Ice Package Billing Engine"
           subtitle="Active academy packages, on-site M-Pesa checkout, and session-pack balances."
         >
+          {/* A parent quoted one number on bigice.co.ke and charged
+              another at the Paybill is a dispute, not a rounding issue.
+              The rail charges the tier table; this says when the two
+              have drifted apart, and refuses to guess which is right. */}
+          {priceDrift.length > 0 && (
+            <div
+              role="alert"
+              style={{
+                background: "#2c2415",
+                border: "1px solid #7f6b2b",
+                borderRadius: 8,
+                padding: "12px 14px",
+                marginBottom: 14,
+                fontSize: 13,
+                lineHeight: 1.7,
+                color: "#f6c443",
+              }}
+            >
+              <strong>Published price does not match the charging table.</strong>
+              <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+                {priceDrift.map((d) => (
+                  <li key={d.label}>
+                    {d.label}: bigice.co.ke shows <strong>{kes(d.publishedKes)}</strong>, the
+                    M-Pesa rail would charge{" "}
+                    <strong>{d.chargedKes === null ? "—" : kes(d.chargedKes)}</strong>.
+                  </li>
+                ))}
+              </ul>
+              <span style={{ display: "block", marginTop: 8, color: theme.muted }}>
+                Update whichever is wrong — the site copy, or
+                commercial_price_tier. Checkout charges the table.
+              </span>
+            </div>
+          )}
+
           <StatRow>
             <Stat label="Active packages" value={packages.length} />
             <Stat label="Enrolled clients" value={clients.filter((c) => c.payment_status === "PAYMENT_SETTLED").length} tone="good" />

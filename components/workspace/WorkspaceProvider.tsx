@@ -121,9 +121,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // 3. Unauthenticated visitors go to the login screen.
+  // 3. Unauthenticated visitors go to the login screen — carrying the
+  //    path they asked for, so a deep link into a dashboard survives the
+  //    detour instead of dumping them on the default surface.
   useEffect(() => {
-    if (ready && !token) router.replace("/login");
+    if (!ready || token) return;
+    const here = `${window.location.pathname}${window.location.search}`;
+    router.replace(`/login?redirectTo=${encodeURIComponent(here)}`);
   }, [ready, token, router]);
 
   const available = useMemo(

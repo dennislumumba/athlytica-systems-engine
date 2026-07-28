@@ -16,6 +16,28 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
+// League / academy the registrant is joining. `source` is the value the
+// STK route accepts; `brand` is the tier-table venture it filters to, so
+// the chosen programme and the tier that gets charged can never disagree
+// — venture_context is derived server-side from the tier, and a mismatch
+// there would misattribute the athlete AND the revenue.
+const PROGRAMS = [
+  {
+    source: "nrhl",
+    brand: "NRHL",
+    label: "Nairobi Regional Hockey League (NRHL)",
+    coach: "Head Coach · NRHL",
+  },
+  {
+    source: "athlytica",
+    brand: "Athlytica",
+    label: "Athlytica — sport-agnostic profiling",
+    coach: "Athlytica HQ",
+  },
+] as const;
+
+type ProgramSource = (typeof PROGRAMS)[number]["source"];
+
 const TIERS = [
   {
     id: "baseline_7500",
@@ -48,6 +70,9 @@ const TIERS = [
 ] as const;
 
 type TierId = (typeof TIERS)[number]["id"];
+
+const isProgramSource = (v: unknown): v is ProgramSource =>
+  PROGRAMS.some((p) => p.source === v);
 
 const CAMPUS_NODES = ["The Summit", "The Ridge", "The Plateau", "The Savannah"];
 
@@ -102,11 +127,23 @@ const labelStyle: React.CSSProperties = {
 function RegisterForm() {
   const searchParams = useSearchParams();
   const urlTier = searchParams.get("tier");
-  const source = searchParams.get("source") ?? undefined;
+  const urlSource = searchParams.get("source");
 
-  const [tier, setTier] = useState<TierId>(
+  // ?source= pre-selects the programme (that is what the NRHL and Big Ice
+  // marketing links carry); the dropdown is how everyone else picks.
+  const [program, setProgram] = useState<ProgramSource>(
+    isProgramSource(urlSource) ? urlSource : "nrhl",
+  );
+  const tiers = TIERS.filter(
+    (t) => t.brand === PROGRAMS.find((p) => p.source === program)!.brand,
+  );
+  const [pickedTier, setTier] = useState<TierId>(
     TIERS.some((t) => t.id === urlTier) ? (urlTier as TierId) : "combine_27500",
   );
+  // Switching programme must not leave a tier from the other one selected
+  // — that is exactly the mismatch venture_context cannot survive. Derived
+  // rather than synced by an effect, so there is no invalid intermediate.
+  const tier = tiers.some((t) => t.id === pickedTier) ? pickedTier : tiers[0]!.id;
   const [parentName, setParentName] = useState("");
   const [parentEmail, setParentEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -167,9 +204,7 @@ function RegisterForm() {
           parentEmail,
           ...(athleteAge ? { athleteAge: Number(athleteAge) } : {}),
           preferredCampus: campus,
-          ...(source === "nrhl" || source === "bigice" || source === "athlytica"
-            ? { source }
-            : {}),
+          source: program,
         }),
       });
       const body = (await res.json()) as {
@@ -210,9 +245,29 @@ function RegisterForm() {
         One intake for every program. Pay securely via M-Pesa.
       </p>
 
-      {/* Tier selection */}
+      {/* Programme selection — which league / academy owns this athlete */}
+      <label style={{ ...labelStyle, marginTop: 24 }}>
+        League / academy
+        <select
+          style={inputStyle}
+          value={program}
+          onChange={(e) => setProgram(e.target.value as ProgramSource)}
+        >
+          {PROGRAMS.map((p) => (
+            <option key={p.source} value={p.source}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+        <span style={{ display: "block", fontSize: 12, color: "#5f7392", marginTop: 6, fontWeight: 400 }}>
+          The athlete&apos;s record lands in this programme&apos;s roster —{" "}
+          {PROGRAMS.find((p) => p.source === program)!.coach}.
+        </span>
+      </label>
+
+      {/* Tier selection, scoped to the chosen programme */}
       <div style={{ display: "grid", gap: 10, marginTop: 20 }}>
-        {TIERS.map((t) => (
+        {tiers.map((t) => (
           <label
             key={t.id}
             style={{

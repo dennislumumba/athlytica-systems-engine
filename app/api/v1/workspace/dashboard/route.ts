@@ -34,6 +34,11 @@ import {
   type Actor,
 } from "@/lib/auth/workspace";
 import { MPESA_PAYBILL } from "@/config/payment-rail";
+import {
+  BIG_ICE_SOURCE_URL,
+  fetchBigIcePricing,
+  findPriceDrift,
+} from "@/lib/services/bigice-pricing";
 import { buildCommand, type CommandInput } from "@/lib/services/command-metrics";
 
 export const runtime = "nodejs";
@@ -66,6 +71,17 @@ const num = (v: unknown): number => (typeof v === "number" ? v : Number(v ?? 0) 
  * the football tenant explicitly.
  */
 const HOCKEY_SPORTS = ["ice_hockey", "inline_hockey"];
+
+/**
+ * commercial_price_tier.tier_name → the cohort slug on bigice.co.ke.
+ * The two were named independently, so the join is explicit; an
+ * unmapped tier simply reports no drift rather than a false one.
+ */
+const BIG_ICE_TIER_SLUGS: Record<string, string> = {
+  "Annual Master": "annual",
+  "Semi-Annual": "semi-annual",
+  Quarterly: "quarter",
+};
 
 // ---------------------------------------------------------------------
 // NRHL — combine intakes, paybill telemetry, roster, league ops
@@ -215,8 +231,22 @@ async function bigIceData(db: Supabase) {
     ]),
   );
 
+  // Reconciliation against the public quote on bigice.co.ke. A parent
+  // who was quoted one number and charged another is a dispute, so the
+  // mismatch is surfaced to the founder rather than left to settlement.
+  // Never throws and never blocks: worst case the sheet is the fallback.
+  const sheet = await fetchBigIcePricing();
+  const charged = new Map<string, number>();
+  for (const p of packages) {
+    const slug = BIG_ICE_TIER_SLUGS[String(p.tier_name ?? "")];
+    const amount = num(p.price_amount);
+    if (slug && amount > 0) charged.set(slug, amount);
+  }
+
   return {
     packages,
+    publishedPricing: { tiers: sheet.tiers, live: sheet.live, source: BIG_ICE_SOURCE_URL },
+    priceDrift: findPriceDrift(sheet.tiers, charged),
     schedule: enrolments,
     balances: [...balances.values()].map((b) => ({
       ...b,
@@ -661,7 +691,15 @@ export async function GET(request: NextRequest) {
 
   const requested = request.nextUrl.searchParams.get("workspace");
   if (!requested) {
-    return NextResponse.json({ success: true, actor: publicActor(actor) });
+    // Shell bootstrap. hasProfile decides whether a grantless account is
+    // sent to /onboarding or to the "access pending" screen — see
+    // lib/auth/landing.ts. A missing table reads as "no profile", so an
+    // unmigrated environment routes people to the form rather than 500s.
+    return NextResponse.json({
+      success: true,
+      actor: publicActor(actor),
+      hasProfile: await hasProfile(actor.userId),
+    });
   }
   if (!isWorkspaceId(requested)) {
     return NextResponse.json(
@@ -909,6 +947,20 @@ async function approveProvenance(body: unknown, actor: Actor) {
     // silent success — the client surfaces this.
     ledgerWarning: ledgerError ? ledgerError.message : null,
   });
+}
+
+/** Has this account completed the self-service profile step? */
+async function hasProfile(userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await adminClient()
+      .from("user_profiles")
+      .select("user_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    return !error && Boolean(data);
+  } catch {
+    return false;
+  }
 }
 
 function publicActor(actor: Actor) {

@@ -12,6 +12,8 @@ import {
   WORKSPACE_IDS,
   canSee,
   visibleNav,
+  WORKSPACE_SLUGS,
+  workspaceFromSlug,
 } from "../config/workspaces.ts";
 
 const ids = (workspace, role, perspective) =>
@@ -54,4 +56,39 @@ test("athlete sees only self-scoped panels", () => {
 test("root founder identity is the hardcoded lowercase address", () => {
   assert.equal(GLOBAL_FOUNDER_EMAIL, "dennis@bigice.co.ke");
   assert.equal(GLOBAL_FOUNDER_EMAIL, GLOBAL_FOUNDER_EMAIL.toLowerCase());
+});
+
+// ---------------------------------------------------------------------
+// ROUTE ALIASES — kebab URL slugs vs snake_case workspace ids.
+// A slug that stops resolving silently 404s a whole venture.
+// ---------------------------------------------------------------------
+
+test("every workspace has a slug, and every slug round-trips", () => {
+  for (const id of WORKSPACE_IDS) {
+    const slug = WORKSPACE_SLUGS[id];
+    assert.ok(slug, `${id} has no URL slug`);
+    assert.equal(workspaceFromSlug(slug), id);
+  }
+});
+
+test("the four documented tenant aliases resolve", () => {
+  assert.equal(workspaceFromSlug("hq"), "athlytica_hq");
+  assert.equal(workspaceFromSlug("nrhl"), "nrhl");
+  assert.equal(workspaceFromSlug("big-ice"), "big_ice");
+  assert.equal(workspaceFromSlug("tta"), "tta");
+});
+
+test("slugs are URL-safe kebab, never the snake_case id", () => {
+  for (const id of WORKSPACE_IDS) {
+    assert.match(WORKSPACE_SLUGS[id], /^[a-z0-9-]+$/, `${id} slug is not URL-safe`);
+  }
+  // big_ice would work as a path segment but splits the canonical URL in two.
+  assert.equal(workspaceFromSlug("big_ice"), null);
+});
+
+test("slug lookup is case-insensitive but rejects junk", () => {
+  assert.equal(workspaceFromSlug("BIG-ICE"), "big_ice");
+  assert.equal(workspaceFromSlug("nope"), null);
+  assert.equal(workspaceFromSlug(""), null);
+  assert.equal(workspaceFromSlug(undefined), null);
 });

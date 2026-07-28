@@ -10,10 +10,10 @@
 // knows nothing about roles.
 // =====================================================================
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { supabaseClient } from "@/utils/supabaseClient";
+import { RedirectIfAuthed } from "@/components/auth/redirect-if-authed";
 
 const card: React.CSSProperties = {
   background: "#111a2c",
@@ -43,32 +43,23 @@ const label: React.CSSProperties = {
 };
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
 
-  // Already signed in (or just returned from a magic link) → straight in.
-  useEffect(() => {
-    supabaseClient.auth.getSession().then(({ data }) => {
-      if (data.session) router.replace("/dashboard");
-    });
-    const {
-      data: { subscription },
-    } = supabaseClient.auth.onAuthStateChange((_event, session) => {
-      if (session) router.replace("/dashboard");
-    });
-    return () => subscription.unsubscribe();
-  }, [router]);
-
   async function sendMagicLink(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setNotice(null);
+    // The link returns to /auth/callback, which handles both the magic-link
+    // fragment and the PKCE ?code=, then routes by role — carrying any
+    // ?redirectTo= the dashboard guard attached on the way in.
     const { error } = await supabaseClient.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
-      options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback${window.location.search}`,
+      },
     });
     setBusy(false);
     setNotice(
@@ -89,13 +80,18 @@ export default function LoginPage() {
       email: email.trim().toLowerCase(),
       password,
     });
-    setBusy(false);
-    if (error) setNotice({ tone: "err", text: error.message });
-    else router.replace("/dashboard");
+    // On success the auth state change fires and <RedirectIfAuthed>
+    // takes over — busy stays true so the form cannot be resubmitted
+    // underneath the "Authenticating…" veil.
+    if (error) {
+      setBusy(false);
+      setNotice({ tone: "err", text: error.message });
+    }
   }
 
   return (
     <main style={{ maxWidth: 440, margin: "0 auto", padding: "64px 16px 40px" }}>
+      <RedirectIfAuthed veil />
       <p style={{ fontSize: 12, letterSpacing: 2, color: "#5f7392", textTransform: "uppercase" }}>
         NRHL · Big Ice · Athlytica HQ
       </p>

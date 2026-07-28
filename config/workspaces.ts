@@ -54,6 +54,32 @@ export const WORKSPACES = {
 export type WorkspaceId = keyof typeof WORKSPACES;
 export const WORKSPACE_IDS = Object.keys(WORKSPACES) as WorkspaceId[];
 
+/**
+ * URL slug per workspace. Routes are kebab-case and human-typed
+ * (/dashboard/w/big-ice); ids are snake_case and match the SQL CHECK
+ * constraint (big_ice). Nothing else may map between the two — a second
+ * mapping is how /dashboard/w/hq and /dashboard/w/athlytica-hq end up
+ * both half-working.
+ */
+export const WORKSPACE_SLUGS = {
+  tta: "tta",
+  nrhl: "nrhl",
+  big_ice: "big-ice",
+  athlytica_hq: "hq",
+} as const satisfies Record<WorkspaceId, string>;
+
+export type WorkspaceSlug = (typeof WORKSPACE_SLUGS)[WorkspaceId];
+export const WORKSPACE_SLUG_LIST = WORKSPACE_IDS.map((id) => WORKSPACE_SLUGS[id]);
+
+const BY_SLUG = new Map<string, WorkspaceId>(
+  WORKSPACE_IDS.map((id) => [WORKSPACE_SLUGS[id], id]),
+);
+
+/** Resolves a URL slug to a workspace id, or null for an unknown one. */
+export function workspaceFromSlug(slug: unknown): WorkspaceId | null {
+  return typeof slug === "string" ? (BY_SLUG.get(slug.toLowerCase()) ?? null) : null;
+}
+
 export const WORKSPACE_ROLES = ["GLOBAL_FOUNDER", "HEAD_COACH", "ATHLETE"] as const;
 export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];
 

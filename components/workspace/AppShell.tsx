@@ -12,7 +12,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { WORKSPACES, visibleNav, type WorkspaceId } from "@/config/workspaces";
+import { WORKSPACES, WORKSPACE_SLUGS, visibleNav, type WorkspaceId } from "@/config/workspaces";
 import {
   MODE_BLURB,
   MODE_LABEL,
@@ -188,6 +188,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             heading={`${MODE_LABEL[mode]} canvas`}
             accent={mode === "founder" ? theme.warn : theme.accent}
             items={commandPanels.map((p) => ({ id: p.id, label: p.label, href: `/dashboard#${p.id}` }))}
+          />
+          {/* Every venture the actor holds a grant in, as a direct link.
+              The switcher above changes context in place; these are
+              addressable URLs, so NRHL and Big Ice are bookmarkable
+              side by side rather than one being a dropdown state. */}
+          <NavGroup
+            heading="Ventures"
+            accent={accent}
+            items={available.map((id) => ({
+              id,
+              label: WORKSPACES[id].short,
+              href: `/dashboard/w/${WORKSPACE_SLUGS[id]}`,
+            }))}
           />
           <NavGroup
             heading={`${workspace ? WORKSPACES[workspace].short : ""} deep dive`}
