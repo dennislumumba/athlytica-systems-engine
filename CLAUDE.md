@@ -140,5 +140,7 @@ database must still render, so dashboard panels degrade independently
 - Workspace/role taxonomy is mirrored in `config/workspaces.ts` and the
   SQL `CHECK` constraints. Widen both or neither.
 - Big Ice academy packages price from `commercial_price_tier`
-  (`tier_group = 'academy'`), not the code-level tier table. They are not
-  yet purchasable from `/register` — that needs a public price endpoint.
+  (`tier_group = 'academy'`), not the code-level tier table. `/register`
+  offers them via `GET /api/v1/public/packages` and submits
+  `priceTierId`; every other programme submits `tier`. The STK route
+  takes **exactly one** of the two and re-derives the charge from it.

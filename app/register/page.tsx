@@ -29,6 +29,14 @@ const PROGRAMS = [
     coach: "Head Coach · NRHL",
   },
   {
+    // Big Ice cohorts are priced from public.commercial_price_tier, not
+    // the code table above, so this programme's options are fetched.
+    source: "bigice",
+    brand: "Big Ice",
+    label: "Big Ice Hockey & Inline Academy",
+    coach: "Head Coach · Big Ice",
+  },
+  {
     source: "athlytica",
     brand: "Athlytica",
     label: "Athlytica — sport-agnostic profiling",
@@ -73,6 +81,35 @@ type TierId = (typeof TIERS)[number]["id"];
 
 const isProgramSource = (v: unknown): v is ProgramSource =>
   PROGRAMS.some((p) => p.source === v);
+
+/**
+ * One shape for both funnels. The STK route takes exactly one of `tier`
+ * (code table) or `priceTierId` (commercial_price_tier), so `kind`
+ * decides which key the payload carries — the radio list itself does not
+ * care where an option came from.
+ */
+interface Choice {
+  key: string;
+  kind: "tier" | "package";
+  label: string;
+  amountKes: number;
+  blurb: string;
+}
+
+const tierChoices = (brand: string): Choice[] =>
+  TIERS.filter((t) => t.brand === brand).map((t) => ({
+    key: t.id,
+    kind: "tier",
+    label: t.label,
+    amountKes: t.amountKes,
+    blurb: t.blurb,
+  }));
+
+interface AcademyPackage {
+  priceTierId: string;
+  label: string;
+  amountKes: number;
+}
 
 const CAMPUS_NODES = ["The Summit", "The Ridge", "The Plateau", "The Savannah"];
 
@@ -134,16 +171,44 @@ function RegisterForm() {
   const [program, setProgram] = useState<ProgramSource>(
     isProgramSource(urlSource) ? urlSource : "nrhl",
   );
-  const tiers = TIERS.filter(
-    (t) => t.brand === PROGRAMS.find((p) => p.source === program)!.brand,
-  );
-  const [pickedTier, setTier] = useState<TierId>(
+  // Big Ice cohorts come from the database; every other programme is
+  // priced from the code table. Fetched once, not per programme switch.
+  const [packages, setPackages] = useState<AcademyPackage[] | null>(null);
+  const [packagesFailed, setPackagesFailed] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/v1/public/packages")
+      .then((res) => res.json())
+      .then((body: { success?: boolean; packages?: AcademyPackage[] }) => {
+        if (cancelled) return;
+        if (body.success && body.packages?.length) setPackages(body.packages);
+        else setPackagesFailed(true);
+      })
+      .catch(() => !cancelled && setPackagesFailed(true));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const choices: Choice[] =
+    program === "bigice"
+      ? (packages ?? []).map((p) => ({
+          key: p.priceTierId,
+          kind: "package" as const,
+          label: p.label,
+          amountKes: p.amountKes,
+          blurb: "Big Ice academy cohort — rink time, coaching, and development tracking.",
+        }))
+      : tierChoices(PROGRAMS.find((p) => p.source === program)!.brand);
+
+  const [pickedKey, setPickedKey] = useState<string>(
     TIERS.some((t) => t.id === urlTier) ? (urlTier as TierId) : "combine_27500",
   );
-  // Switching programme must not leave a tier from the other one selected
-  // — that is exactly the mismatch venture_context cannot survive. Derived
-  // rather than synced by an effect, so there is no invalid intermediate.
-  const tier = tiers.some((t) => t.id === pickedTier) ? pickedTier : tiers[0]!.id;
+  // Switching programme must not leave an option from the other one
+  // selected — that is exactly the mismatch venture_context cannot
+  // survive. Derived rather than synced by an effect, so there is never
+  // an invalid intermediate state to submit from.
+  const selected = choices.find((c) => c.key === pickedKey) ?? choices[0] ?? null;
   const [parentName, setParentName] = useState("");
   const [parentEmail, setParentEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -152,8 +217,6 @@ function RegisterForm() {
   const [campus, setCampus] = useState(CAMPUS_NODES[0]);
   const [phase, setPhase] = useState<Phase>({ name: "form" });
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const selected = TIERS.find((t) => t.id === tier)!;
 
   useEffect(() => {
     return () => {
@@ -191,6 +254,7 @@ function RegisterForm() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!selected) return;
     setPhase({ name: "pushing" });
     try {
       const res = await fetch("/api/v1/biz/stk-push", {
@@ -198,7 +262,12 @@ function RegisterForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phoneNumber,
-          tier,
+          // Exactly one of these, which is what the route's schema
+          // refines on. Amount is deliberately not sent: the charge is
+          // re-derived server-side from whichever key this is.
+          ...(selected.kind === "package"
+            ? { priceTierId: selected.key }
+            : { tier: selected.key }),
           athleteName,
           parentName,
           parentEmail,
@@ -226,6 +295,8 @@ function RegisterForm() {
         name: "awaiting_pin",
         registrationId: body.registrationId,
         accountReference: body.accountReference ?? "—",
+        // The server's figure is authoritative; ours is only a fallback
+        // for the overlay copy if the response omits it.
         amountKes: body.amountKes ?? selected.amountKes,
         stkDispatched: body.stkPush?.dispatched ?? false,
       });
@@ -265,11 +336,11 @@ function RegisterForm() {
         </span>
       </label>
 
-      {/* Tier selection, scoped to the chosen programme */}
+      {/* Option selection, scoped to the chosen programme */}
       <div style={{ display: "grid", gap: 10, marginTop: 20 }}>
-        {tiers.map((t) => (
+        {choices.map((c) => (
           <label
-            key={t.id}
+            key={c.key}
             style={{
               ...card,
               padding: 14,
@@ -277,29 +348,40 @@ function RegisterForm() {
               gap: 12,
               alignItems: "flex-start",
               cursor: "pointer",
-              borderColor: tier === t.id ? "#2f81f7" : "#24334d",
-              background: tier === t.id ? "#122036" : "#111a2c",
+              borderColor: selected?.key === c.key ? "#2f81f7" : "#24334d",
+              background: selected?.key === c.key ? "#122036" : "#111a2c",
             }}
           >
             <input
               type="radio"
-              name="tier"
-              value={t.id}
-              checked={tier === t.id}
-              onChange={() => setTier(t.id)}
+              name="offering"
+              value={c.key}
+              checked={selected?.key === c.key}
+              onChange={() => setPickedKey(c.key)}
               style={{ marginTop: 4 }}
             />
             <span style={{ flex: 1 }}>
               <span style={{ display: "flex", justifyContent: "space-between", fontWeight: 700 }}>
-                <span>{t.label}</span>
-                <span>{kes(t.amountKes)}</span>
+                <span>{c.label}</span>
+                <span>{kes(c.amountKes)}</span>
               </span>
               <span style={{ display: "block", fontSize: 13, color: "#9fb1c9", marginTop: 2 }}>
-                {t.brand} · {t.blurb}
+                {PROGRAMS.find((p) => p.source === program)!.brand} · {c.blurb}
               </span>
             </span>
           </label>
         ))}
+
+        {/* Big Ice cohorts are fetched, so they have states the code-table
+            programmes do not: still loading, or unreachable. Never show an
+            empty list with a live pay button under it. */}
+        {choices.length === 0 && (
+          <p style={{ ...card, padding: 14, fontSize: 14, color: "#9fb1c9", margin: 0 }}>
+            {packagesFailed
+              ? "Academy cohorts are unavailable right now. Pick another programme, or contact Big Ice to register directly."
+              : "Loading academy cohorts…"}
+          </p>
+        )}
       </div>
 
       {phase.name === "form" || phase.name === "pushing" || phase.name === "error" ? (
@@ -389,25 +471,29 @@ function RegisterForm() {
             </p>
           )}
 
+          {/* No selection means the fetched cohort list is empty or still
+              loading — charging nothing is not a checkout. */}
           <button
             type="submit"
-            disabled={phase.name === "pushing"}
+            disabled={phase.name === "pushing" || !selected}
             style={{
               width: "100%",
               marginTop: 18,
               padding: "13px 16px",
               borderRadius: 10,
               border: "none",
-              background: phase.name === "pushing" ? "#1d4e33" : "#16a34a",
+              background: phase.name === "pushing" || !selected ? "#1d4e33" : "#16a34a",
               color: "#fff",
               fontSize: 16,
               fontWeight: 700,
-              cursor: phase.name === "pushing" ? "wait" : "pointer",
+              cursor: phase.name === "pushing" ? "wait" : selected ? "pointer" : "not-allowed",
             }}
           >
             {phase.name === "pushing"
               ? "Sending M-Pesa prompt…"
-              : `Complete Registration via M-Pesa — ${kes(selected.amountKes)}`}
+              : selected
+                ? `Complete Registration via M-Pesa — ${kes(selected.amountKes)}`
+                : "Select a programme option"}
           </button>
         </form>
       ) : null}
