@@ -1,0 +1,390 @@
+/* =====================================================================
+ * NRHL × ATHLYTICA — styles for the integration bundle.
+ *
+ * Every colour reads the site's existing custom properties first and
+ * falls back to the verified literal, so this file drops onto the live
+ * page without touching style.css and still renders correctly if the
+ * variables are ever renamed.
+ *
+ * Scoped under .na-* — nothing here can reach the site's own selectors.
+ * ===================================================================== */
+
+.na-block {
+  --na-navy: var(--color-deep-navy, #051020);
+  --na-navy-2: var(--color-deep-navy-2, #081a31);
+  --na-gold: var(--color-gold, #d4af37);
+  --na-gold-soft: var(--color-gold-soft, #f4e4b7);
+  --na-text: var(--color-text, #d9e5f2);
+  --na-muted: var(--color-muted, #8ca0b8);
+  --na-border: var(--color-border, rgba(212, 175, 55, 0.16));
+  --na-panel: var(--color-panel, rgba(255, 255, 255, 0.045));
+
+  color: var(--na-text);
+  max-width: var(--max-width, 1240px);
+  margin: 0 auto;
+  /* Side padding, because the mount points sit inside <section> rather
+     than inside the site's .container — without it these blocks would
+     touch the viewport edge on mobile. */
+  padding: 8px 20px 24px;
+}
+
+.na-title {
+  font-size: clamp(20px, 3vw, 28px);
+  margin: 0 0 6px;
+  color: var(--na-text);
+  letter-spacing: -0.01em;
+}
+
+.na-sub {
+  margin: 0 0 18px;
+  color: var(--na-muted);
+  font-size: 15px;
+  line-height: 1.65;
+  max-width: 70ch;
+}
+
+.na-note {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--na-muted);
+  line-height: 1.7;
+  max-width: 78ch;
+}
+
+.na-status {
+  margin: 10px 0;
+  font-size: 14px;
+  color: var(--na-muted);
+}
+.na-bad {
+  margin: 8px 0;
+  font-size: 14px;
+  color: #ff8fa8;
+}
+.na-good {
+  margin: 8px 0;
+  font-size: 14px;
+  color: #6ee7a8;
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------- layout */
+
+.na-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.na-card {
+  background: var(--na-panel);
+  border: 1px solid var(--na-border);
+  border-radius: var(--radius-md, 20px);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.na-card-tier {
+  justify-content: space-between;
+}
+
+.na-card-title {
+  font-size: 16px;
+  color: var(--na-gold-soft);
+  letter-spacing: 0.01em;
+}
+
+.na-card-copy {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--na-muted);
+  line-height: 1.65;
+}
+
+.na-price {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--na-gold);
+  letter-spacing: -0.02em;
+}
+
+.na-includes {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13.5px;
+  color: var(--na-muted);
+  line-height: 1.75;
+}
+
+/* ----------------------------------------------------------- timeline */
+
+.na-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.na-phase {
+  border-left: 2px solid var(--na-gold);
+  padding: 4px 0 10px 16px;
+}
+
+.na-phase-window {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--na-gold);
+  font-weight: 700;
+}
+
+.na-phase-title {
+  display: block;
+  font-size: 16px;
+  margin: 4px 0 4px;
+}
+
+/* -------------------------------------------------------------- table */
+
+.na-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin-top: 12px;
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.na-table th {
+  text-align: left;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--na-muted);
+  border-bottom: 1px solid var(--na-border);
+  padding: 8px 10px;
+  font-weight: 700;
+}
+
+.na-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(140, 160, 184, 0.16);
+  color: var(--na-text);
+}
+
+.na-table .na-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.na-table .na-strong {
+  font-weight: 800;
+  color: var(--na-gold-soft);
+}
+
+.na-table tbody tr:hover td {
+  background: rgba(212, 175, 55, 0.05);
+}
+
+/* ------------------------------------------------------------- inputs */
+
+.na-input,
+.na-select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--na-border);
+  background: var(--na-navy-2);
+  color: var(--na-text);
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.na-select {
+  width: auto;
+  min-width: 200px;
+  margin-top: 6px;
+}
+
+.na-input:focus,
+.na-select:focus {
+  outline: 2px solid var(--na-gold);
+  outline-offset: 1px;
+}
+
+.na-btn {
+  padding: 11px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--na-gold);
+  background: transparent;
+  color: var(--na-gold);
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--transition-fast, 180ms ease);
+}
+
+.na-btn:hover {
+  background: rgba(212, 175, 55, 0.12);
+}
+
+.na-btn-primary {
+  background: var(--na-gold);
+  color: var(--na-navy);
+}
+
+.na-btn-primary:hover {
+  background: var(--na-gold-soft);
+}
+
+.na-btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.na-verify {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  max-width: 460px;
+}
+
+.na-verify .na-input {
+  flex: 1 1 200px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.na-result {
+  margin-top: 14px;
+  max-width: 520px;
+}
+
+.na-facts {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 13.5px;
+}
+
+.na-facts li {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid rgba(140, 160, 184, 0.14);
+  padding-bottom: 5px;
+}
+
+.na-fact-k {
+  color: var(--na-muted);
+}
+.na-fact-v {
+  color: var(--na-text);
+  font-weight: 600;
+  text-align: right;
+}
+
+/* -------------------------------------------------------------- modal */
+
+.na-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 16, 32, 0.82);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 16px;
+  overflow-y: auto;
+  z-index: 9999;
+}
+
+.na-modal {
+  position: relative;
+  background: var(--color-deep-navy-2, #081a31);
+  border: 1px solid var(--color-border, rgba(212, 175, 55, 0.16));
+  border-radius: var(--radius-lg, 28px);
+  box-shadow: var(--shadow-xl, 0 28px 80px rgba(0, 0, 0, 0.38));
+  padding: 28px;
+  width: min(560px, 100%);
+  color: var(--color-text, #d9e5f2);
+  margin: auto;
+}
+
+.na-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: var(--color-muted, #8ca0b8);
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.na-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.na-label {
+  display: grid;
+  gap: 5px;
+}
+
+.na-label-text {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted, #8ca0b8);
+  font-weight: 700;
+}
+
+.na-hint {
+  font-size: 12px;
+  color: var(--color-muted, #8ca0b8);
+  line-height: 1.5;
+}
+
+.na-fieldset {
+  border: 1px solid var(--color-border, rgba(212, 175, 55, 0.16));
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.na-radio {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-text, #d9e5f2);
+  cursor: pointer;
+}
+
+.na-radio input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .na-modal {
+    padding: 22px 18px;
+  }
+  .na-card {
+    padding: 16px;
+  }
+}

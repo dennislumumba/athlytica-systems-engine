@@ -3,14 +3,31 @@
 // multi-tenant shell (founder directive 2026-07-26).
 //
 // Mirror of the CHECK constraints in
-// supabase/migrations/20260726120000_workspace_rbac.sql. If a workspace
-// or role is added there, add it here — nowhere else encodes the list.
+// supabase/migrations/20260726120000_workspace_rbac.sql, widened by
+// 20260727120000_tta_workspace.sql. If a workspace or role is added
+// there, add it here — nowhere else encodes the list.
 // =====================================================================
 
 /** Hardcoded root account: bypasses onboarding, GLOBAL_FOUNDER everywhere. */
 export const GLOBAL_FOUNDER_EMAIL = "dennis@bigice.co.ke";
 
+/**
+ * Tenant id of TTA International Football Academy (external code
+ * TTA-001) in public.tenants. The TTA workspace is a single-tenant
+ * client surface, so the id is pinned here rather than discovered —
+ * every TTA read is scoped to it server-side.
+ */
+export const TTA_TENANT_ID = "77000001-0000-4000-8000-000000000001";
+
+// Order matters: WorkspaceProvider lands on the first workspace the
+// actor holds a grant in, so TTA is the default context.
 export const WORKSPACES = {
+  tta: {
+    label: "TTA International Football Academy",
+    short: "TTA",
+    venture: "TTA",
+    accent: "#2f81f7",
+  },
   nrhl: {
     label: "Nairobi Regional Hockey League",
     short: "NRHL",
@@ -75,6 +92,11 @@ export interface NavItem {
 }
 
 export const NAV: Record<WorkspaceId, NavItem[]> = {
+  tta: [
+    { id: "squad", label: "Squad & Programs", group: "tactical" },
+    { id: "development", label: "Road to Mastery", group: "tactical" },
+    { id: "passport", label: "Scout Passport", group: "tactical" },
+  ],
   nrhl: [
     { id: "stk-stream", label: "STK Push Financial Stream", group: "financial" },
     { id: "combine-funnel", label: "Combine Funnel", group: "financial" },

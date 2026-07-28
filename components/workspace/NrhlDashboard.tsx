@@ -137,6 +137,32 @@ export function NrhlDashboard() {
 
   return (
     <div style={{ display: "grid", gap: 18 }}>
+      <a
+        href="/dashboard/leagues/nrhl/overview"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 14,
+          flexWrap: "wrap",
+          background: theme.panel,
+          border: `1px solid ${theme.accent}55`,
+          borderRadius: 14,
+          padding: "14px 18px",
+          textDecoration: "none",
+          color: theme.text,
+        }}
+      >
+        <span>
+          <strong style={{ fontSize: 15 }}>League Command Center →</strong>
+          <span style={{ display: "block", fontSize: 13, color: theme.muted, marginTop: 3 }}>
+            Standings, matchday sheets, roster and draft engine, certificate issuing, and the road to
+            the January 2027 draft.
+          </span>
+        </span>
+        <Badge tone="good">head coach</Badge>
+      </a>
+
       {shown.has("stk-stream") && (
         <Panel
           id="stk-stream"

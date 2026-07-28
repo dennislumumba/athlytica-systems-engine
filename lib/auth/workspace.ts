@@ -102,3 +102,42 @@ export async function resolveActor(request: Request): Promise<Actor | null> {
 export function roleIn(actor: Actor, workspace: WorkspaceId): WorkspaceRole | null {
   return actor.roles[workspace] ?? null;
 }
+
+/**
+ * One gate for workspace-scoped feature routes (the NRHL league module
+ * is the first). Returns the actor and their role, or the exact Response
+ * the caller should return — so a route never has to remember which of
+ * 503/401/403 applies to which failure.
+ */
+export async function requireWorkspaceRole(
+  request: Request,
+  workspace: WorkspaceId,
+  allowed: readonly WorkspaceRole[],
+): Promise<{ actor: Actor; role: WorkspaceRole } | { denied: Response }> {
+  if (!serviceRoleConfigured()) {
+    return {
+      denied: Response.json(
+        {
+          success: false,
+          status: "CONFIG_DEBT",
+          error: "SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not provisioned.",
+        },
+        { status: 503 },
+      ),
+    };
+  }
+  const actor = await resolveActor(request);
+  if (!actor) {
+    return { denied: Response.json({ success: false, error: "Not authenticated." }, { status: 401 }) };
+  }
+  const role = roleIn(actor, workspace);
+  if (!role || !allowed.includes(role)) {
+    return {
+      denied: Response.json(
+        { success: false, error: `Requires ${allowed.join(" or ")} in ${workspace}.` },
+        { status: 403 },
+      ),
+    };
+  }
+  return { actor, role };
+}

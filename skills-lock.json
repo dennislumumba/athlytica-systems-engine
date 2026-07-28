@@ -1,0 +1,281 @@
+{
+  "version": 1,
+  "skills": {
+    "agent-role-design": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/design-agent-orchestration/agent-role-design/SKILL.md",
+      "computedHash": "9fa30eb3e460b3e5acf9a68e346cd5652562bf71e23b4aa8aeb15af047b1751e"
+    },
+    "behavioral-consistency": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/system-behavior-shaping/behavioral-consistency/SKILL.md",
+      "computedHash": "1e4eb0a78902a5fe063e79db46119c6bc001bf76797ddc65293f7950349e067c"
+    },
+    "bias-detection-design": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ai-alignment-reasoning/bias-detection-design/SKILL.md",
+      "computedHash": "72dd70d9ba24386f376709dd978092e46492bb4770c992e62fd916b60dac0c73"
+    },
+    "chain-of-thought-design": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/prompt-architecture/chain-of-thought-design/SKILL.md",
+      "computedHash": "01c240b5b962e60f24234dacf9ca6f217d2bd91f084b8b2341573cb45e891226"
+    },
+    "comparative-evaluation": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/evaluation/comparative-evaluation/SKILL.md",
+      "computedHash": "21016c6aa3b73e9e82f4f7cab9f8c15f483c8ddaec796d0cec3d52e6d0c666d5"
+    },
+    "consent-and-agency": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ai-alignment-reasoning/consent-and-agency/SKILL.md",
+      "computedHash": "1461bdb11ed8e55582dc7e07177a8ab0e790bf034801987f47c5130efefb4f36"
+    },
+    "constraint-specification": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/prompt-architecture/constraint-specification/SKILL.md",
+      "computedHash": "14b2de6452224efef05b40ed00228444382e794829018205450ed104e1fe448a"
+    },
+    "context-engineering": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/prompt-architecture/context-engineering/SKILL.md",
+      "computedHash": "a5e3b2e2a16ef7ae59c3821d2bcb2e6118e16c47510d62941f60b5c238a325f4"
+    },
+    "context-window-design": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/model-interaction-design/context-window-design/SKILL.md",
+      "computedHash": "5c729dca9d8da9d6d474000618988b727f921a4a99d46eb9c8681b7027f88f69"
+    },
+    "conversation-patterns": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/model-interaction-design/conversation-patterns/SKILL.md",
+      "computedHash": "89066077e8f8bd791713b990faa3fa290584fddac181094ad5ff1abfcc9d7be3"
+    },
+    "cultural-adaptation": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/system-behavior-shaping/cultural-adaptation/SKILL.md",
+      "computedHash": "47963f00c29f06c0cff2306f95ec1e8761a0702935110d77b933311b796ef0d6"
+    },
+    "domain-voice": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/system-behavior-shaping/domain-voice/SKILL.md",
+      "computedHash": "282b74086f1703bce5d214e651521a96118d1f7c77cdf8ceb39f1b517735c656"
+    },
+    "emotional-design": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/system-behavior-shaping/emotional-design/SKILL.md",
+      "computedHash": "e48b1a0c6805b68aa2c955da703d27723de87160c09b35febbd3105dddfcb776"
+    },
+    "error-personality": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/system-behavior-shaping/error-personality/SKILL.md",
+      "computedHash": "99bcfd797d285eb3040b3207baf3b83c020bd7341a67a23e879f5d2a30c77995"
+    },
+    "escalation-design": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ai-alignment-reasoning/escalation-design/SKILL.md",
+      "computedHash": "c90da4951058729c8c8f9d7e8fd9de821ea35463fe176b236beccb57287ba33c"
+    },
+    "failure-recovery": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/design-agent-orchestration/failure-recovery/SKILL.md",
+      "computedHash": "34f66aa7a9d576ff63aff375805d30889a40096f0ff459480f7f33e21f35ca16"
+    },
+    "failure-taxonomy": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/evaluation/failure-taxonomy/SKILL.md",
+      "computedHash": "fa69a58dc02d0cd68d05c0552ca281cc8b16c05d1b532b7d2f4f74c1fc019b0a"
+    },
+    "feedback-loops": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/model-interaction-design/feedback-loops/SKILL.md",
+      "computedHash": "785dbb7390139b2d5086434467b22facc85973fbfc34964ac61aeaeb948e2a61"
+    },
+    "few-shot-patterns": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/prompt-architecture/few-shot-patterns/SKILL.md",
+      "computedHash": "4f7411f2a7fac24d876572a159c88ef461c66990c41c4a4eaa8f20bf13c0dfc1"
+    },
+    "frustration-detection": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/model-interaction-design/frustration-detection/SKILL.md",
+      "computedHash": "fd7ead616df4498b965979f9759a9fca057f2472d57d20423054c1b03b9fe748"
+    },
+    "generative-ui": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/model-interaction-design/generative-ui/SKILL.md",
+      "computedHash": "111348ac5aa08306b1b808869a4ef30b8e264c4940ef626952aedea549950d56"
+    },
+    "guardrail-design": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ai-alignment-reasoning/guardrail-design/SKILL.md",
+      "computedHash": "41c3d9083bef259da0db0a55b9df4b2d97bbd640852b3492e95c3e07abede75d"
+    },
+    "handoff-protocols": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/design-agent-orchestration/handoff-protocols/SKILL.md",
+      "computedHash": "24b77e7637cbe39e1a8988009937e22dbb80e050d2c1eff7af4c11e04318ac47"
+    },
+    "harm-anticipation": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ai-alignment-reasoning/harm-anticipation/SKILL.md",
+      "computedHash": "da222d19aa57d8f817b3b6b4c3d22fa7998b360fab4e25f8d95bdb6b61e7dbd0"
+    },
+    "heuristic-evaluation-ai": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/evaluation/heuristic-evaluation-ai/SKILL.md",
+      "computedHash": "e50072170e9812251f2b2169423a1b014ce64fe68b34c74650e789adfddb5f3e"
+    },
+    "human-in-the-loop": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/design-agent-orchestration/human-in-the-loop/SKILL.md",
+      "computedHash": "0115b0d9ba683507e6716a16bc0f34e245de54da040968bc73656c0208f95746"
+    },
+    "longitudinal-measurement": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/evaluation/longitudinal-measurement/SKILL.md",
+      "computedHash": "f2296615effabd3e0beeb049c7e6f7410f9e83a72025ea41fbd22e7bfa8e8ef2"
+    },
+    "mixed-initiative-flow": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/model-interaction-design/mixed-initiative-flow/SKILL.md",
+      "computedHash": "a630f16200fbdc8dc706bfafd7bbd3897b9a77a6cb25c86f7dfd3a0964c9c3f0"
+    },
+    "multimodal-orchestration": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/model-interaction-design/multimodal-orchestration/SKILL.md",
+      "computedHash": "63d07b6aa16414e42b77d47c235401e98a73c059e65d799ab3c85ed50559b028"
+    },
+    "observability-design": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/design-agent-orchestration/observability-design/SKILL.md",
+      "computedHash": "6aeaf66067bb14fa95a47166d59259ac07754af03e02657ceb95e5476cd81c88"
+    },
+    "output-quality-rubrics": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/evaluation/output-quality-rubrics/SKILL.md",
+      "computedHash": "2900f62815079ee34a73310d73d7879a600844e44222ebef7f95149fdf19516c"
+    },
+    "persona-architecture": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/system-behavior-shaping/persona-architecture/SKILL.md",
+      "computedHash": "b5ae507d6dbf5571f4f15b34fd1ebbd78689dc8bb4c28503ac5e1386372beafe"
+    },
+    "progressive-disclosure": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/model-interaction-design/progressive-disclosure/SKILL.md",
+      "computedHash": "f4a5b0480ef151983922ea424a03955db0dbe5b0d7e7ca3a457c84e1d1465bbd"
+    },
+    "prompt-versioning": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/prompt-architecture/prompt-versioning/SKILL.md",
+      "computedHash": "f5afc967ee8680a79d0c32a0430bb2d9bd0dca02c94424d55720acd90d1d6bf2"
+    },
+    "state-management": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/design-agent-orchestration/state-management/SKILL.md",
+      "computedHash": "928c93781a7f7a268b09dc7b6f1c34ad8f9ebf80001f16eb5a5c03dbbf76ae47"
+    },
+    "supabase": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/supabase/SKILL.md",
+      "computedHash": "19fca56d93a6d212c6373ad921dcaeddf2ff13e3558e6bfd6e63acb063255f86"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
+      "computedHash": "768f9a7532780a72165f79c91d71a4bf82abd9ed31045238c2acb40322fc1d0a"
+    },
+    "system-prompt-structure": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/prompt-architecture/system-prompt-structure/SKILL.md",
+      "computedHash": "41d39e6cff8925323098661c818bd52440e0529ac7b6d5848059054387e74fc1"
+    },
+    "task-decomposition": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/design-agent-orchestration/task-decomposition/SKILL.md",
+      "computedHash": "acc019e7f9b790db3c6ee616a5e95f3af8cdda03f0e441f54f46e7afb450a9b0"
+    },
+    "task-success-metrics": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/evaluation/task-success-metrics/SKILL.md",
+      "computedHash": "7b81856dac61414a5c1eaa3b49b1b6825d6078da2182fdcdd1a0c4b16e92e747"
+    },
+    "template-design": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/prompt-architecture/template-design/SKILL.md",
+      "computedHash": "b59fa64cf3c139ddcfdea19f69ff3775fc9892dc1e863408a787603c77b80dcf"
+    },
+    "tone-calibration": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/system-behavior-shaping/tone-calibration/SKILL.md",
+      "computedHash": "d7820f9581138d67525d41e4fd4218e4f1a2c0e2a724542cf0323b6cc536acc6"
+    },
+    "transparency-patterns": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ai-alignment-reasoning/transparency-patterns/SKILL.md",
+      "computedHash": "da974f876fa583a33be8f304d11e9c5081e32a43dca96d97a23e54d695763b64"
+    },
+    "trust-calibration": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ai-alignment-reasoning/trust-calibration/SKILL.md",
+      "computedHash": "9365054c5d42a6bc976378916ebd3e356d57b61aef46421580d4f9ab0d25ee93"
+    },
+    "user-satisfaction-signals": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/evaluation/user-satisfaction-signals/SKILL.md",
+      "computedHash": "44d6889305ea377c4e2e0e5ac62f647a5aaaf770285b92587485ba37d94a979f"
+    },
+    "value-specification": {
+      "source": "Owl-Listener/ai-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ai-alignment-reasoning/value-specification/SKILL.md",
+      "computedHash": "aa4458dfdb4fe24f482dfef7995b2317c0d3edd02122ab984f4d753fdd11f3b0"
+    }
+  }
+}

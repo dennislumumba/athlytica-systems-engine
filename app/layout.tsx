@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "Nairobi Roller Hockey League",
+  // Shell title for every workspace, not one venture's — a hockey title on
+  // the tab leaks across a football academy's screens.
+  title: "Athlytica",
   description:
-    "Unified registration for NRHL, Big Ice Academy, and Athlytica programs.",
+    "Unified registration and athlete telemetry for Athlytica workspaces.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
