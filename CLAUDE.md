@@ -8,6 +8,38 @@ Commands: `pnpm dev`, `pnpm build`, `pnpm typecheck`, `pnpm test`.
 
 ---
 
+## DEPLOYMENT — COMMIT TO `main`, NEVER TO `master`
+
+**Production deploys from `main`.** It is the repository default branch
+(`origin/HEAD → main`) and therefore the Vercel project's production
+branch. Nothing else publishes.
+
+`master` existed as a parallel working branch and silently broke the
+deploy: between 2026-07 and 2026-08-11 four commits landed on `master`
+and none reached production, so `nairobihockey.com/register` served an
+eight-week-old checkout — old tier names, and `/api/v1/public/*`
+returning 404 because those routes did not exist in the deployed build.
+Nothing failed loudly; the branch simply was not the one being deployed.
+It was fixed by fast-forwarding `main` to `master` (574e672).
+
+So:
+
+- Commit and push to **`main`**.
+- If a push does not change production within ~3 minutes, check the
+  branch before debugging anything else.
+- Verify a deploy against a route the change actually touches — a 200 on
+  `/register` proves nothing, because that page has existed for months.
+  `curl -s https://athlytica-systems-engine.vercel.app/api/v1/public/nrhl`
+  is a better canary: it 404s on any build older than 2026-07-28.
+
+The static sites are separate projects on their own repos and deploy
+from **their** `main` (`NRHL-Site`, `big-ice-site`). `nairobihockey.com`
+proxies `/register`, `/api/v1/*` and `/_next/*` here via `vercel.json`
+rewrites, so a stale engine deploy surfaces as a stale checkout on a
+site that itself deployed correctly.
+
+---
+
 ## ROUTING & AUTHENTICATION CONVENTIONS
 
 ### Entry points
