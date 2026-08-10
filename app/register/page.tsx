@@ -117,6 +117,7 @@ interface AcademyPackage {
 const CAMPUS_NODES = ["The Summit", "The Ridge", "The Plateau", "The Savannah"];
 
 const PAYBILL = "4325935";
+const ADMISSIONS_PHONE = "+254 724 324 529";
 const POLL_INTERVAL_MS = 3_000;
 
 const kes = (n: number) => `KES ${n.toLocaleString("en-KE")}`;
@@ -293,6 +294,7 @@ function RegisterForm() {
       });
       const body = (await res.json()) as {
         success?: boolean;
+        status?: string;
         error?: string;
         registrationId?: string;
         accountReference?: string;
@@ -300,6 +302,23 @@ function RegisterForm() {
         stkPush?: { dispatched: boolean };
       };
       if (!res.ok || !body.success || !body.registrationId) {
+        // A fail-closed config error is a message to US, not to a parent
+        // holding a phone. "MSISDN_HASH_KEY is not provisioned; refusing to
+        // persist unhashed PII" was reaching customers verbatim — it reads
+        // as a crash, and it publishes an internal env var name. Route the
+        // family to a human instead and keep the cause in the console.
+        const sealed = res.status === 503 || body.status === "CONFIG_DEBT" || body.status === "SCHEMA_DEBT";
+        if (sealed) {
+          console.error("[register] checkout sealed:", body.status, body.error);
+          setPhase({
+            name: "error",
+            message:
+              `Online registration is temporarily unavailable — this is on our side, not yours. ` +
+              `Message admissions on ${ADMISSIONS_PHONE} (WhatsApp or call) and we will complete ` +
+              `your registration and confirm payment for you.`,
+          });
+          return;
+        }
         setPhase({
           name: "error",
           message: body.error ?? "Checkout could not be started. Please try again.",

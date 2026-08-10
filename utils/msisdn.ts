@@ -14,6 +14,24 @@
 //   * app/api/v1/biz/mpesa-callback/route.ts (resolution router)
 // =====================================================================
 
+// PROVISIONING — MSISDN_HASH_KEY (>= 16 chars, any random string):
+//
+//   NEVER ROTATE IT once a single registration exists. This is not only a
+//   privacy hash — it is a LOOKUP key. `registrations.msisdn_hash` is how
+//   the settlement callback matches a payment to a registration when the
+//   payer mistypes the account field, and `account_reference` is derived
+//   from the same digest. Change the key and every existing registration
+//   becomes unmatchable: money still arrives, but it lands as
+//   SETTLED_UNMATCHED and has to be reconciled by hand, forever.
+//
+//   For the same reason it must hold the SAME value in every Vercel
+//   environment. A preview deployment with a different key computes a
+//   different hash for the same phone, so a payment made through a preview
+//   URL will not match the production row it belongs to.
+//
+//   Unset (or shorter than the bar below) seals /register and the
+//   settlement callback at 503 rather than persisting a raw MSISDN.
+
 /** Minimum viable HMAC key length — mirrors the callback's fail-closed bar. */
 export const MSISDN_HASH_MIN_KEY_LENGTH = 16;
 
