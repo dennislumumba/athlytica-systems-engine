@@ -14,15 +14,15 @@ import {
   fetchBigIcePricing,
 } from "../lib/services/bigice-pricing.ts";
 
-// Verbatim from bigice.co.ke, 2026-07-28.
+// Verbatim from bigice.co.ke, 2026-08-10.
 const LIVE_MARKUP = `
   <select id="intakeCohort" name="cohort">
     <option value="annual">Annual Athlete Pathway — KSh 350,000</option>
     <option value="semi-annual">Semi-Annual Academy — KSh 180,000</option>
     <option value="quarter">Quarter-Cycle Academy — KSh 95,000</option>
-    <option value="combine-metric">Fall Combine · Metric Evaluation — KES 7,500</option>
-    <option value="combine-clinic">Fall Combine · Full-Phase Clinics — KES 27,500</option>
-    <option value="combine-accel">Fall Combine · Acceleration Track — KES 45,000</option>
+    <option value="combine-metric">NRHL · Athlete Performance Assessment — KES 7,500</option>
+    <option value="combine-clinic">NRHL · Performance Hockey Program — KES 27,500</option>
+    <option value="combine-accel">NRHL · Elite Individual Development — KES 45,000</option>
     <option value="family-estate">Family &amp; Estate Private Cohort — Custom Quote</option>
   </select>`;
 

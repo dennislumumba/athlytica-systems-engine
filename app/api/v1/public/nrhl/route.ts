@@ -140,31 +140,46 @@ export async function GET() {
 }
 
 /**
- * The two pre-season packages the public site sells. Sourced from the
- * server-side tier table so the site can never advertise a price the
- * checkout will not charge.
+ * The three programmes the public site sells. Names, prices and session
+ * counts are the ones nairobihockey.com publishes — a public feed that
+ * describes a different product than the page quoting it is worse than
+ * no feed. Prices are read from the server-side tier table so this can
+ * never advertise a figure the checkout will not charge.
  */
 function publicTiers() {
   return [
     {
+      id: "baseline_7500",
+      name: "Athlete Performance Assessment",
+      amountKes: REGISTRATION_TIERS.baseline_7500.amountKes,
+      includes: [
+        "One 90-minute assessment session",
+        "Digital Athlete Performance Profile with baseline measurements",
+        "Recommended development priorities",
+        "Fee credited toward Performance or Elite if you enrol within 30 days",
+      ],
+    },
+    {
       id: "combine_27500",
-      name: "Tier 1 — Pre-Season Combine",
+      name: "Performance Hockey Program",
       amountKes: REGISTRATION_TIERS.combine_27500.amountKes,
       includes: [
-        "Standardised combine testing across all five pillars",
-        "Baseline Digital Scouting Passport",
-        "Full training funnel through the selection phase",
+        "9 group training sessions of 120 minutes",
+        "3 showcase scrimmages of 120 minutes",
+        "The 90-minute assessment",
+        "Training groups of approximately 3–8 athletes per coach",
+        "Facility fees and end-of-phase progress review included",
       ],
     },
     {
       id: "acceleration_45000",
-      name: "Tier 2 — High-Performance Acceleration",
+      name: "Elite Individual Development",
       amountKes: REGISTRATION_TIERS.acceleration_45000.amountKes,
       includes: [
-        "Everything in Tier 1",
-        "Full pre-season selection track, up to 3 sessions weekly",
-        "Advanced telemetry analytics and remote video analysis",
-        "Jersey kit and league clearance",
+        "Everything in the Performance Hockey Program",
+        "12 private coaching sessions of 90 minutes",
+        "Movement and video review where appropriate",
+        "43.5 hours of scheduled programme exposure across the phase",
       ],
     },
   ];

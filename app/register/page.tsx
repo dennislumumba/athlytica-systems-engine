@@ -49,24 +49,27 @@ type ProgramSource = (typeof PROGRAMS)[number]["source"];
 const TIERS = [
   {
     id: "baseline_7500",
-    label: "Baseline Tech Profiling",
+    label: "Athlete Performance Assessment",
     brand: "Athlytica",
     amountKes: 7_500,
-    blurb: "Digital Scouting Passport + baseline metric capture.",
+    blurb:
+      "One 90-minute assessment. Digital Athlete Performance Profile, baseline measurements and development priorities.",
   },
   {
     id: "combine_27500",
-    label: "Fall Combine",
+    label: "Performance Hockey Program",
     brand: "NRHL",
     amountKes: 27_500,
-    blurb: "Full combine entry with evaluation pod placement.",
+    blurb:
+      "3-month phase: 9 group sessions (120 min), 3 showcase scrimmages (120 min) and the 90-minute assessment.",
   },
   {
     id: "acceleration_45000",
-    label: "Acceleration Program",
+    label: "Elite Individual Development",
     brand: "NRHL",
     amountKes: 45_000,
-    blurb: "Combine entry + 3-to-8 coaching pod acceleration track.",
+    blurb:
+      "Everything in Performance plus 12 private coaching sessions (90 min) across the 3-month phase.",
   },
   {
     id: "enterprise_150k",
@@ -168,8 +171,20 @@ function RegisterForm() {
 
   // ?source= pre-selects the programme (that is what the NRHL and Big Ice
   // marketing links carry); the dropdown is how everyone else picks.
+  //
+  // ?tier= OUTRANKS ?source=, because a tier names a specific purchase and
+  // a source only names a landing page. nairobihockey.com sells the KES
+  // 7,500 assessment (`baseline_7500`, brand Athlytica) from an `nrhl`
+  // page: with source winning, that tier is absent from the NRHL choice
+  // list and `selected` silently fell back to combine_27500 — a parent
+  // clicking a 7,500 CTA landed on a 27,500 selection. Deriving the
+  // programme from the tier's own brand cannot desync from the
+  // server-side venture, because brand mirrors it.
+  const tierProgram = PROGRAMS.find(
+    (p) => p.brand === TIERS.find((t) => t.id === urlTier)?.brand,
+  )?.source;
   const [program, setProgram] = useState<ProgramSource>(
-    isProgramSource(urlSource) ? urlSource : "nrhl",
+    tierProgram ?? (isProgramSource(urlSource) ? urlSource : "nrhl"),
   );
   // Big Ice cohorts come from the database; every other programme is
   // priced from the code table. Fetched once, not per programme switch.
@@ -579,9 +594,9 @@ function RegisterForm() {
               </>
             )}
             <br />
-            Your athlete&apos;s Scouting Passport is being provisioned and a
-            coaching pod assignment is underway. Portal access details will
-            arrive by email shortly.
+            Your athlete&apos;s Digital Athlete Performance Profile is being
+            provisioned and a training group assignment is underway. Portal
+            access details will arrive by email shortly.
           </p>
           <p style={{ fontSize: 14, color: "#9fb1c9" }}>
             Redirecting you to the onboarding dashboard…{" "}

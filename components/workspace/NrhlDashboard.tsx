@@ -74,9 +74,9 @@ interface NrhlPayload {
 }
 
 const TIER_LABELS: Record<string, string> = {
-  baseline_7500: "Baseline Tech Profiling · KES 7,500",
-  combine_27500: "Fall Combine · KES 27,500",
-  acceleration_45000: "Acceleration Program · KES 45,000",
+  baseline_7500: "Athlete Performance Assessment · KES 7,500",
+  combine_27500: "Performance Hockey Program · KES 27,500",
+  acceleration_45000: "Elite Individual Development · KES 45,000",
   enterprise_150k: "Institutional License · KES 150,000",
 };
 
@@ -234,11 +234,11 @@ export function NrhlDashboard() {
           <p style={{ marginTop: 14, marginBottom: 0, fontSize: 13, color: theme.muted }}>
             Share links:{" "}
             <a href="/register?tier=combine_27500&source=nrhl" style={{ color: theme.accent }}>
-              Fall Combine (KES 27,500)
+              Performance (KES 27,500)
             </a>{" "}
             ·{" "}
             <a href="/register?tier=acceleration_45000&source=nrhl" style={{ color: theme.accent }}>
-              Acceleration (KES 45,000)
+              Elite (KES 45,000)
             </a>
           </p>
         </Panel>

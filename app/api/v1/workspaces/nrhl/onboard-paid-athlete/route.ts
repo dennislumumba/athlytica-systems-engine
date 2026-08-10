@@ -184,6 +184,6 @@ export async function POST(request: NextRequest) {
     amountMismatch: amountMismatch
       ? { received: input.amountKes, expected: expectedKes }
       : null,
-    next: "Baseline combine session required before a Performance ID is issued.",
+    next: "Baseline assessment session required before a Performance ID is issued.",
   });
 }

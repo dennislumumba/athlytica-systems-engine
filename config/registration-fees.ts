@@ -43,21 +43,25 @@ export function feeEnvKey(venture: VentureContext): string {
 // client-supplied amounts are never trusted (same law as venture fees).
 // ---------------------------------------------------------------------
 
+// Tier ids are frozen — they are written into settled payment rows and
+// live in marketing links. Only the labels move. The names below are the
+// ones nairobihockey.com sells under; a parent must never see one name
+// on the page and another at checkout.
 export const REGISTRATION_TIERS = {
   baseline_7500: {
     amountKes: 7500,
     venture: "ATHLYTICA",
-    label: "Baseline Tech Profiling",
+    label: "Athlete Performance Assessment",
   },
   combine_27500: {
     amountKes: 27_500,
     venture: "NRHL",
-    label: "Fall Combine",
+    label: "Performance Hockey Program",
   },
   acceleration_45000: {
     amountKes: 45_000,
     venture: "NRHL",
-    label: "Acceleration Program",
+    label: "Elite Individual Development",
   },
   enterprise_150k: {
     amountKes: 150_000,

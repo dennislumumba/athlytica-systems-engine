@@ -181,7 +181,7 @@ export function playerPassport(a: PassportAthlete): string {
 
   <p><span class="badge">Verify at nairobihockey.com/verify</span></p>`;
   return page({
-    eyebrow: "Nairobi Regional Hockey League · Athlytica Digital Scouting Passport",
+    eyebrow: "Nairobi Regional Hockey League · Digital Athlete Performance Profile",
     title: `Player Passport — ${a.displayName}`,
     body,
     footnote: `Passport ${a.athleteCode}. Performance data is internal to NRHL league operations and is not released to third parties without Academy Director approval.`,
@@ -227,9 +227,9 @@ const blank = (label: string) => `<div class="muted">${esc(label)}</div><div cla
 /** Official registration form — closes the gaps in the live web funnel. */
 export function registrationForm(prefill: Partial<PassportAthlete> = {}): string {
   const body = `
-  <p>Complete in full. Fields marked * are required for draft eligibility. Combine
-  participation is mandatory: an athlete cannot be seeded into the January 2027 draft
-  without a Performance ID.</p>
+  <p>Complete in full. Fields marked * are required to register. Athletes who complete a
+  development phase carry a performance record into the January 2027 league selection
+  process; selection itself follows the league's published eligibility rules.</p>
 
   <h2>Athlete</h2>
   ${blank("Full legal name *")}
@@ -249,8 +249,9 @@ export function registrationForm(prefill: Partial<PassportAthlete> = {}): string
   <table>
     <thead><tr><th>Select</th><th>Package</th><th class="num">Fee (KES)</th><th>Includes</th></tr></thead>
     <tbody>
-      <tr><td>☐</td><td>Tier 1 — Pre-Season Combine</td><td class="num">27,500</td><td>Combine testing, baseline passport, training funnel</td></tr>
-      <tr><td>☐</td><td>Tier 2 — High-Performance Acceleration</td><td class="num">45,000</td><td>Full pre-season selection, advanced telemetry, jersey kit, league clearance</td></tr>
+      <tr><td>☐</td><td>Athlete Performance Assessment</td><td class="num">7,500</td><td>One 90-minute assessment; Digital Athlete Performance Profile and development priorities. Credited toward Performance or Elite if you enrol within 30 days</td></tr>
+      <tr><td>☐</td><td>Performance Hockey Program</td><td class="num">27,500</td><td>3-month phase: 9 group sessions (120 min), 3 showcase scrimmages (120 min), the 90-minute assessment, progress tracking, facility fees, end-of-phase review</td></tr>
+      <tr><td>☐</td><td>Elite Individual Development</td><td class="num">45,000</td><td>Everything in Performance plus 12 private coaching sessions (90 min) across the phase</td></tr>
     </tbody>
   </table>
   ${blank("Payment method — M-Pesa / Card / Bank transfer")}
@@ -321,11 +322,12 @@ export function liabilityWaiver(a: Partial<PassportAthlete> = {}): string {
   });
 }
 
-/** Combine information handout given to families at intake. */
+/** Programme information handout given to families at intake. */
 export function combineHandout(): string {
   const body = `
-  <p>The Pre-Season Selection Combine runs <strong>August to October 2026</strong>. It is the
-  only route into the January 2027 draft.</p>
+  <p>The Fall development and assessment phase runs <strong>August to October 2026</strong>.
+  Athletes establish a baseline, train in small groups, play a showcase scrimmage each month
+  and build the performance record they carry into the January 2027 league phase.</p>
 
   <h2>What is measured</h2>
   <table>
@@ -366,21 +368,23 @@ export function combineHandout(): string {
     </tbody>
   </table>
 
-  <h2>Road to the draft</h2>
+  <h2>From development to competition</h2>
   <ul>
-    <li><strong>Aug – Oct 2026</strong> — combine and skill assessment</li>
-    <li><strong>Nov – Dec 2026</strong> — draft lock and roster assignment</li>
+    <li><strong>Aug – Oct 2026</strong> — development and assessment phase</li>
+    <li><strong>Nov – Dec 2026</strong> — roster assignment and league preparation</li>
     <li><strong>January 2027</strong> — official league opening matchday</li>
   </ul>
+  <p>Completing a development phase does not guarantee a draft position or league selection.
+  Selection follows the league's published eligibility process.</p>
 
   <h2>Equipment</h2>
-  <p>Baseline audit requires recreational inline skates or running shoes only. Full league
-  play requires a multi-impact certified helmet, wrist guards, elbow shields, shin guards and
-  a stick cut to collarbone height. Gear is included in the league registration fee and
-  outgrown items are traded back into the inventory hub.</p>`;
+  <p>Athletes currently need their own inline hockey skates, protective equipment and a
+  skating/hockey helmet. Full league play additionally requires a multi-impact certified
+  helmet, wrist guards, elbow shields, shin guards and a stick cut to collarbone height. We
+  are working toward equipment loan and purchase options from January 2027.</p>`;
   return page({
-    eyebrow: "NRHL · Fall Combine 2026",
-    title: "Pre-Season Selection Combine — Information Handout",
+    eyebrow: "NRHL · Fall 2026 development phase",
+    title: "Youth Inline Hockey Development — Information Handout",
     body,
   });
 }

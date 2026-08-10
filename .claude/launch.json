@@ -12,6 +12,12 @@
       "runtimeExecutable": "cmd",
       "runtimeArgs": ["/c", "cd", "/d", "C:\\Users\\User Profile\\athlytica-app\\athlytica-app", "&&", "npm", "run", "dev"],
       "port": 5173
+    },
+    {
+      "name": "nrhl-static",
+      "runtimeExecutable": "py",
+      "runtimeArgs": ["-m", "http.server", "4321", "--directory", "C:\\Users\\User Profile\\NRHL-Site"],
+      "port": 4321
     }
   ]
 }

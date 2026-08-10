@@ -41,17 +41,19 @@ export const BIG_ICE_SOURCE_URL = "https://www.bigice.co.ke/";
 const TIMEOUT_MS = 1_500;
 
 /**
- * Last known-good sheet, verbatim from bigice.co.ke on 2026-07-28.
+ * Last known-good sheet, verbatim from bigice.co.ke on 2026-08-10.
  * Update it when the site changes — a stale fallback is the one way
- * this module can quietly lie.
+ * this module can quietly lie. `tests/bigice-pricing.test.mts` asserts
+ * this list equals what the live markup parses to, so the fixture, this
+ * array and bigice.co.ke's own <option> text move together or not at all.
  */
 export const FALLBACK_TIERS: readonly BigIceTier[] = [
   { id: "annual", label: "Annual Athlete Pathway", amountKes: 350_000 },
   { id: "semi-annual", label: "Semi-Annual Academy", amountKes: 180_000 },
   { id: "quarter", label: "Quarter-Cycle Academy", amountKes: 95_000 },
-  { id: "combine-metric", label: "Fall Combine · Metric Evaluation", amountKes: 7_500 },
-  { id: "combine-clinic", label: "Fall Combine · Full-Phase Clinics", amountKes: 27_500 },
-  { id: "combine-accel", label: "Fall Combine · Acceleration Track", amountKes: 45_000 },
+  { id: "combine-metric", label: "NRHL · Athlete Performance Assessment", amountKes: 7_500 },
+  { id: "combine-clinic", label: "NRHL · Performance Hockey Program", amountKes: 27_500 },
+  { id: "combine-accel", label: "NRHL · Elite Individual Development", amountKes: 45_000 },
   { id: "family-estate", label: "Family & Estate Private Cohort", amountKes: null },
 ];
 

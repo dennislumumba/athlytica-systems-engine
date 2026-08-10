@@ -55,7 +55,7 @@ const PHASE_DETAIL: Record<string, { label: string; items: string[] }> = {
     items: [
       "Standardised kinetic profiling — every athlete gets a five-pillar baseline",
       "Monthly showcase scrimmage, final weekend of each month",
-      "Digital Scouting Passport instantiated at first measurement",
+      "Digital Athlete Performance Profile created at first measurement",
     ],
   },
   draft: {
