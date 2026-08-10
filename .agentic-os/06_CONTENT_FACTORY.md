@@ -5,6 +5,23 @@
 **Scope:** All social, video, and funnel content across the five-brand ecosystem (Personal, Athlytica, NRHL, BIIF, Kiko & Friends TV) for the window **Mon 2026-07-20 (Day 1) → Tue 2026-08-18 (Day 30)**.
 **Numbering note (binding):** Manual number 04 is allocated to `04_NOTION_SYNC_MAP.md` and cross-referenced from live code (`config/payment-rail.ts` → "manual 04 §5", `config/registration-fees.ts` → "04 §4.2(3)"). This manual is ratified as **06**. Do not create a second `04_*` file.
 
+> **AMENDMENT 2026-08-11 — read before using any naming or payment string below.**
+>
+> | This manual says | Current truth |
+> |---|---|
+> | Tier 1 / Tech Profile Track | **Athlete Performance Assessment** — KES 7,500 (`baseline_7500`) |
+> | Tier 2 / Clinic Track / Fall Combine | **Performance Hockey Program** — KES 27,500 (`combine_27500`) |
+> | Tier 3 / Acceleration Track, "up to 3 weekly sessions" | **Elite Individual Development** — KES 45,000, 12 × 90-min private sessions (`acceleration_45000`) |
+> | Paybill 880100, account = registration reference | **Paybill 4325935, account = athlete's name** |
+> | D-7: no asset may claim automated/STK payment is live | **STK push is live.** The registration flow sends an M-Pesa prompt; the Paybill above is the manual fallback. |
+> | D-8: site stale, shows Aug 2026 launch + July 31 lockout | **Closed.** `www.nairobihockey.com` was rebuilt 2026-08-10/11 to the January 2027 roadmap and the programme architecture above. |
+>
+> Also retired in public copy: "Scouting Passport" (→ Digital Athlete
+> Performance Profile), "data fidelity" as the reason for the 3–8 cap (→ so
+> coaches can properly coach each athlete), and any framing that a
+> development phase guarantees a draft position or league selection.
+> Canonical offer definition: `brand-nrhl/league-prospectus.md` §4.
+
 ---
 
 ## 0. Ingestion Audit & Honesty Contract (read before producing any asset)

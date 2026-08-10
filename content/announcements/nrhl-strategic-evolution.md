@@ -1,6 +1,23 @@
 # NRHL Strategic Evolution — Official Public Announcement (Copy Deck)
 
-**Status:** APPROVED FOUNDER COPY (2026-07-20). Post Day 1 of the current 06 matrix window across NRHL IG + FB and founder LinkedIn. All monthly-pricing references permanently scrubbed — every fee below is flat/one-time.
+> **SUPERSEDED 2026-08-11 — archived as published, do not reuse verbatim.**
+> Three things below are now wrong:
+> 1. **Programme names.** Tier 1/2/3 Track naming is retired. The offers are
+>    **Athlete Performance Assessment** (KES 7,500), **Performance Hockey
+>    Program** (KES 27,500) and **Elite Individual Development** (KES 45,000).
+>    Elite is 12 × 90-minute private sessions across the phase — *not* "up to
+>    3 weekly sessions". Group cap is 3–8 per coach so coaches can properly
+>    coach each athlete, not "to protect data fidelity".
+> 2. **Paybill.** 880100 is retired. The live rail is **Paybill 4325935**,
+>    account = the athlete's name. STK push is live, so the "no automated
+>    payment claims" rule in §Publishing rules no longer applies.
+> 3. **Draft framing.** Do not imply a development phase guarantees a draft
+>    position or league selection.
+>
+> Current published truth: `brand-nrhl/league-prospectus.md` §4 and
+> `www.nairobihockey.com`.
+
+**Status:** APPROVED FOUNDER COPY (2026-07-20), published. Posted Day 1 of the 06 matrix window across NRHL IG + FB and founder LinkedIn. All monthly-pricing references permanently scrubbed — every fee below is flat/one-time.
 **Law:** this announcement MUST be live on `@nairobihockey` channels and reflected on `nairobihockey.com` before any Fall Combine sales content runs (defect D-8, `06_CONTENT_FACTORY.md`). The live site currently still advertises an August 2026 launch and July 31 lockout — publishing combine copy against a contradicting site burns trust with the exact premium families being asked to pay upfront.
 
 ---

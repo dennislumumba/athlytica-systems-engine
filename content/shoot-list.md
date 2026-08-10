@@ -21,7 +21,7 @@
 | INL-01 | Estate cone-racing loops | Ground-level low-angle at cone line; kids racing in pairs; capture wheel chirp audio clean | Agility challenge reels |
 | INL-02 | Timed agility circuit + leaderboard | Static wide of full circuit + insert shots of stopwatch/phone timer; every athlete's run timed on camera | "Beat your Tuesday time" series |
 | INL-03 | Adult agility circuit | Same circuit, adult participants — proof that BIIF is not kids-only; comedic parent-vs-kid race finisher | Parent-targeted conversion reels |
-| INL-04 | Combine-track evaluation coverage | Handheld energy coverage of a live Tech Profile dispatch: 4K camera rigs visible, coach with tablet, athletes queued, 3–8 child cohort agility cone metrics on screen | Fall Combine sales rows (Tech Profile / Clinic / Acceleration) |
+| INL-04 | Assessment session coverage | Handheld energy coverage of a live Athlete Performance Assessment: coach with tablet, athletes queued, 3–8 child cohort agility cone metrics on screen | Programme sales rows (Assessment / Performance / Elite) |
 | INL-05 | Balance blueprint demos | Living-room setting: Single-Leg Clock Reach, Cushion Wobble Hold, Line-Walk Turnarounds — one clean take each, front + side angle | Lead magnet delivery clips (`content/lead-magnets/biif-balance-manual.md`) |
 
 ## Category C — Founder Logs (feeds Friday rows)

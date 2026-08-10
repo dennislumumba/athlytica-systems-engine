@@ -136,17 +136,25 @@ Per §4.2(3), gate dates move only with a recorded founder decision. This is tha
 
 **Effect on §4.3 cascade:** the 🟡 inherited-risk chain (`G-W4-ROSTER` → `G-DRAFT`) is dissolved by retirement, **not** by remediation. `G-W6-PAY` remains 🔴 Blocked → escalate — the Fall Combine tracks sell paid products from Day 1, so payment capture is still the root gate of the live ledger. The breach now blocks combine revenue instead of draft registration; urgency is unchanged.
 
-### 4.5 Fall Combine & Clinic Phase Ledger (ACTIVE — Aug/Sep/Oct 2026)
+### 4.5 Development Phase Ledger (ACTIVE — Aug/Sep/Oct 2026)
 
-**Monetization law:** all three tracks are **flat, upfront, one-time full-phase package fees**. Nothing in this ledger is monthly recurring. Public copy must never describe these as subscriptions.
+> **RENAMED 2026-08-11.** Customer-facing names are **Athlete Performance
+> Assessment** (`baseline_7500`), **Performance Hockey Program**
+> (`combine_27500`) and **Elite Individual Development**
+> (`acceleration_45000`). "Fall Combine", "Tech Profile Track", "Clinic
+> Track", "Acceleration Track" and Tier/Track numbering are retired in all
+> public copy. Gate ids and checkout tier ids are unchanged. Canonical offer
+> definition: `brand-nrhl/league-prospectus.md` §4.
+
+**Monetization law:** all three programmes are **flat, upfront, one-time full-phase package fees**. Nothing in this ledger is monthly recurring. Public copy must never describe these as subscriptions.
 
 | Gate ID | Deliverable | Due | Depends on | Primary KPI |
 |---|---|---|---|---|
 | `G-W6-PAY` | Payment capture live (carried forward, §4.3 state: **Blocked → escalate**) | OVERDUE (was 2026-07-19) | — (root) | First validated M-Pesa settlement event logged via `settle_payment_transaction()` |
-| `C-AUG` | **Athlytica Tech Profile Track** sold and delivered — mobile tracking team dispatch, individual technical evaluation loops, baseline plyometrics, core edge-control profiling → permanent digital performance passport | **2026-08-15** | `G-W6-PAY` for automated capture (manual rail per 06 §2.4 as interim) | **≥ 40 Tech Profiles × KES 7,500 = KES 300,000 upfront cash** |
-| `C-SEP` | **Flat 3-Month Inline Hockey Clinic Track** (KES 27,500 one-time, full-phase) at full cohort acquisition — weekly progressive blocks, stride synchronization, inline edge-control transitions, tactical awareness, month-end scrimmages; strict 3–8 athletes per coach | **2026-09-01** | `C-AUG` funnel + **⚠️ GATED ON: finalized recurring venue contract — The Hub Karen outdoor footprint** | Cohorts filled at 3–8 cap; venue contract signed BEFORE selling dated sessions |
-| `C-OCT` | **High-Performance Acceleration Track** (KES 45,000 one-time, full-phase) at onboarding saturation — up to 3 structured weekly sessions, 1-on-1 private coach dispatches, weekly cohort pod access (3–8 cap), remote biomechanical video analysis, all Tier-2 scrimmage features | **2026-10-01** | `C-SEP` operational proof | Acceleration cohorts saturated; zero athletes without weekly biomech review |
-| `G-DRAFT-27` | **League match-play season + Draft** | **January 2027** (date TBD by founder) | All above — combine data seeds the draft board | Season launched on combine-established baselines |
+| `C-AUG` | **Athlete Performance Assessment** sold and delivered — one 90-minute session: 10 m / 20 m sprints, broad jump, glide, crossovers, backward skating, stopping, transitions, puck-control skating, hockey movement assessment → Digital Athlete Performance Profile + development priorities | **2026-08-15** | `G-W6-PAY` for automated capture (manual rail per 06 §2.4 as interim) | **≥ 40 assessments × KES 7,500 = KES 300,000 upfront cash** |
+| `C-SEP` | **Performance Hockey Program** (KES 27,500 one-time, 3-month phase) at full cohort acquisition — 9 × 120-min group sessions, 3 × 120-min showcase scrimmages, the assessment; 25.5 hrs total; strict 3–8 athletes per coach | **2026-09-01** | `C-AUG` funnel + **⚠️ GATED ON: finalized recurring venue contract — The Hub Karen outdoor footprint** | Cohorts filled at 3–8 cap; venue contract signed BEFORE selling dated sessions |
+| `C-OCT` | **Elite Individual Development** (KES 45,000 one-time, 3-month phase) at onboarding saturation — everything in Performance plus **12 × 90-min private coaching sessions** (18 additional hours, 43.5 hrs total), movement/video review where appropriate | **2026-10-01** | `C-SEP` operational proof | Elite cohorts saturated; every Elite athlete receiving their weekly private session |
+| `G-DRAFT-27` | **League match-play season + Draft** | **January 2027** (date TBD by founder) | All above — development records inform seeding | Season launched on assessment-established baselines. **No public copy may guarantee a draft position or league selection.** |
 
 **Automation laws carried forward:** §4.2 applies to this ledger in full — blocked upstream gates cascade visibly; `G-W6-PAY` escalates daily until first settlement evidence; re-dating requires a §4.4-style decision record.
 
