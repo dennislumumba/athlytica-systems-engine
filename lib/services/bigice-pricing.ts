@@ -147,6 +147,53 @@ export interface PriceDrift {
   chargedKes: number | null;
 }
 
+/**
+ * commercial_price_tier.tier_name → the cohort slug on bigice.co.ke.
+ *
+ * The join is by NAME, and that is the fragile link in reconciliation.
+ * On 2026-08-11 the tier rows were renamed to match the rebuilt site
+ * ("Quarterly" → "3-Month Development") and this map was not updated in
+ * the same breath: every academy tier stopped matching, the charged map
+ * came out empty, and `findPriceDrift` dutifully reported no drift.
+ * Nothing errored. The founder's panel would have shown a clean bill of
+ * health forever.
+ *
+ * It lives here rather than in the dashboard route so it can be tested
+ * without pulling in `next/server` — the failure is invisible from the
+ * outside, so it has to be reachable from a test.
+ */
+export const BIG_ICE_TIER_SLUGS: Readonly<Record<string, string>> = {
+  "Beginner Skating Programme": "beginner",
+  "3-Month Development": "quarter",
+  "6-Month Development": "semi-annual",
+  "12-Month Development": "annual",
+};
+
+/**
+ * Charged prices keyed by the site's cohort slug, plus the tier names
+ * that matched nothing. An unmapped tier is a BROKEN JOIN, not an
+ * absence of drift, and the caller is expected to say so out loud.
+ */
+export function chargedBySlug(
+  packages: readonly { tier_name?: unknown; price_amount?: unknown }[],
+): { charged: Map<string, number>; unmapped: string[] } {
+  const charged = new Map<string, number>();
+  const unmapped: string[] = [];
+  for (const p of packages) {
+    const name = String(p.tier_name ?? "");
+    const slug = BIG_ICE_TIER_SLUGS[name];
+    if (!slug) {
+      if (name) unmapped.push(name);
+      continue;
+    }
+    const amount = Number(p.price_amount);
+    // A zero or unparseable price is a data fault, not a free cohort —
+    // letting it through would reconcile the published price against 0.
+    if (Number.isFinite(amount) && amount > 0) charged.set(slug, amount);
+  }
+  return { charged, unmapped };
+}
+
 export function findPriceDrift(
   published: readonly BigIceTier[],
   charged: ReadonlyMap<string, number>,

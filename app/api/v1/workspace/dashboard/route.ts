@@ -36,6 +36,7 @@ import {
 import { MPESA_PAYBILL } from "@/config/payment-rail";
 import {
   BIG_ICE_SOURCE_URL,
+  chargedBySlug,
   fetchBigIcePricing,
   findPriceDrift,
 } from "@/lib/services/bigice-pricing";
@@ -72,16 +73,8 @@ const num = (v: unknown): number => (typeof v === "number" ? v : Number(v ?? 0) 
  */
 const HOCKEY_SPORTS = ["ice_hockey", "inline_hockey"];
 
-/**
- * commercial_price_tier.tier_name → the cohort slug on bigice.co.ke.
- * The two were named independently, so the join is explicit; an
- * unmapped tier simply reports no drift rather than a false one.
- */
-const BIG_ICE_TIER_SLUGS: Record<string, string> = {
-  "Annual Master": "annual",
-  "Semi-Annual": "semi-annual",
-  Quarterly: "quarter",
-};
+// The tier_name → cohort-slug join lives in lib/services/bigice-pricing
+// alongside findPriceDrift, so it can be tested without next/server.
 
 // ---------------------------------------------------------------------
 // NRHL — combine intakes, paybill telemetry, roster, league ops
@@ -236,11 +229,16 @@ async function bigIceData(db: Supabase) {
   // mismatch is surfaced to the founder rather than left to settlement.
   // Never throws and never blocks: worst case the sheet is the fallback.
   const sheet = await fetchBigIcePricing();
-  const charged = new Map<string, number>();
-  for (const p of packages) {
-    const slug = BIG_ICE_TIER_SLUGS[String(p.tier_name ?? "")];
-    const amount = num(p.price_amount);
-    if (slug && amount > 0) charged.set(slug, amount);
+  const { charged, unmapped } = chargedBySlug(packages);
+  // A tier the site sells but this map does not know is a broken join,
+  // not an absence of drift. Say so — quietly reporting "all clear" is
+  // how the 2026-08-11 rename went unnoticed.
+  if (unmapped.length) {
+    console.error(
+      "[bigice] price reconciliation: no cohort slug for tier_name(s) " +
+        unmapped.map((n) => `"${n}"`).join(", ") +
+        " — these are excluded from drift detection. Update BIG_ICE_TIER_SLUGS.",
+    );
   }
 
   return {
