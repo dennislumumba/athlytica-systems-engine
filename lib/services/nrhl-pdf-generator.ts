@@ -46,7 +46,7 @@ const CONTACT = "Dennis Lumumba · League Director · +254 724 324 529 · dennis
  * bleed navy certificate empties a parent's ink cartridge, so screen
  * documents stay dark and issued paperwork prints light.
  */
-function page(opts: {
+export function page(opts: {
   title: string;
   eyebrow: string;
   body: string;
