@@ -14,26 +14,39 @@ import {
   fetchBigIcePricing,
 } from "../lib/services/bigice-pricing.ts";
 
-// Verbatim from bigice.co.ke, 2026-08-10.
+// Verbatim from bigice.co.ke, 2026-08-11 — the enquiry form's
+// "Preferred programme" select, including the two unpriced options the
+// parser is expected to ignore.
 const LIVE_MARKUP = `
-  <select id="intakeCohort" name="cohort">
-    <option value="annual">Annual Athlete Pathway — KSh 350,000</option>
-    <option value="semi-annual">Semi-Annual Academy — KSh 180,000</option>
-    <option value="quarter">Quarter-Cycle Academy — KSh 95,000</option>
+  <select id="programme" name="programme" required>
+    <option value="">Select a programme</option>
+    <option value="beginner">Beginner Skating Programme — KSh 16,500</option>
+    <option value="quarter">3-Month Development — KSh 95,000</option>
+    <option value="semi-annual">6-Month Development — KSh 180,000</option>
+    <option value="annual">12-Month Development — KSh 350,000</option>
     <option value="combine-metric">NRHL · Athlete Performance Assessment — KES 7,500</option>
     <option value="combine-clinic">NRHL · Performance Hockey Program — KES 27,500</option>
     <option value="combine-accel">NRHL · Elite Individual Development — KES 45,000</option>
     <option value="family-estate">Family &amp; Estate Private Cohort — Custom Quote</option>
+    <option value="unsure">Not sure yet</option>
   </select>`;
 
 test("parses every cohort off the live markup", () => {
   const tiers = parseBigIceTiers(LIVE_MARKUP);
-  assert.equal(tiers.length, 7);
+  assert.equal(tiers.length, 8);
   assert.deepEqual(tiers[0], {
-    id: "annual",
-    label: "Annual Athlete Pathway",
-    amountKes: 350_000,
+    id: "beginner",
+    label: "Beginner Skating Programme",
+    amountKes: 16_500,
   });
+});
+
+test("options carrying no price are skipped, not parsed as zero", () => {
+  // "Select a programme" and "Not sure yet" are real options on the live
+  // form. If either ever parsed, it would enter the sheet as a cohort.
+  const ids = parseBigIceTiers(LIVE_MARKUP).map((t) => t.id);
+  assert.ok(!ids.includes("unsure"));
+  assert.ok(!ids.includes(""));
 });
 
 test("the fallback sheet matches what the site actually publishes", () => {
@@ -65,7 +78,24 @@ test("a zero-priced option is treated as a parse artefact, not a free programme"
 test("drift detector flags a published price the rail would not charge", () => {
   const drift = findPriceDrift(FALLBACK_TIERS, new Map([["annual", 320_000]]));
   assert.deepEqual(drift, [
-    { label: "Annual Athlete Pathway", publishedKes: 350_000, chargedKes: 320_000 },
+    { label: "12-Month Development", publishedKes: 350_000, chargedKes: 320_000 },
+  ]);
+});
+
+test("renaming a cohort on the site does not break drift matching", () => {
+  // The 2026-08-11 rebuild renamed every label and kept every id. Drift
+  // joins on id precisely so a marketing rewrite cannot silently stop
+  // reconciling prices — this is the regression that would prove it did.
+  const ids = FALLBACK_TIERS.map((t) => t.id).sort();
+  assert.deepEqual(ids, [
+    "annual",
+    "beginner",
+    "combine-accel",
+    "combine-clinic",
+    "combine-metric",
+    "family-estate",
+    "quarter",
+    "semi-annual",
   ]);
 });
 

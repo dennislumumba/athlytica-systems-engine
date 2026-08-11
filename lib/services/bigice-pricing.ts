@@ -15,10 +15,14 @@
 //      (see app/api/v1/biz/stk-push), which is the only place a number
 //      may become money. This module is display and reconciliation only.
 //
-// The parse targets the intake <select>, which carries all seven cohorts
-// with stable slugs — the most machine-readable block on the page. If
-// the marketing site is restyled the regex misses, the fallback answers,
-// and the landing page is none the wiser. That is the design, not a bug.
+// The parse targets the enquiry form's "Preferred programme" <select>,
+// which carries every cohort with stable slugs — the most
+// machine-readable block on the page, and the one the site's own README
+// marks as a contract. (Before 2026-08-11 this was the intake modal's
+// cohort select; the modal was removed in the rebuild and the option
+// list moved into the enquiry form, ids intact.) If the marketing site
+// is restyled the regex misses, the fallback answers, and the landing
+// page is none the wiser. That is the design, not a bug.
 // =====================================================================
 
 export interface BigIceTier {
@@ -41,16 +45,25 @@ export const BIG_ICE_SOURCE_URL = "https://www.bigice.co.ke/";
 const TIMEOUT_MS = 1_500;
 
 /**
- * Last known-good sheet, verbatim from bigice.co.ke on 2026-08-10.
+ * Last known-good sheet, verbatim from bigice.co.ke on 2026-08-11.
  * Update it when the site changes — a stale fallback is the one way
  * this module can quietly lie. `tests/bigice-pricing.test.mts` asserts
  * this list equals what the live markup parses to, so the fixture, this
  * array and bigice.co.ke's own <option> text move together or not at all.
+ *
+ * 2026-08-11: the site was re-architected around the customer's buying
+ * journey (start → discipline → commitment). The IDS DID NOT MOVE — they
+ * are the join key for `findPriceDrift` and are written into settled
+ * rows — but the labels are now the ones a parent actually reads, and a
+ * `beginner` cohort was added as the entry rung at KSh 16,500. Anything
+ * that displays `label` shows the new names; anything that matches on
+ * `id` is unaffected.
  */
 export const FALLBACK_TIERS: readonly BigIceTier[] = [
-  { id: "annual", label: "Annual Athlete Pathway", amountKes: 350_000 },
-  { id: "semi-annual", label: "Semi-Annual Academy", amountKes: 180_000 },
-  { id: "quarter", label: "Quarter-Cycle Academy", amountKes: 95_000 },
+  { id: "beginner", label: "Beginner Skating Programme", amountKes: 16_500 },
+  { id: "quarter", label: "3-Month Development", amountKes: 95_000 },
+  { id: "semi-annual", label: "6-Month Development", amountKes: 180_000 },
+  { id: "annual", label: "12-Month Development", amountKes: 350_000 },
   { id: "combine-metric", label: "NRHL · Athlete Performance Assessment", amountKes: 7_500 },
   { id: "combine-clinic", label: "NRHL · Performance Hockey Program", amountKes: 27_500 },
   { id: "combine-accel", label: "NRHL · Elite Individual Development", amountKes: 45_000 },

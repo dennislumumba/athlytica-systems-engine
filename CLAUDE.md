@@ -176,3 +176,25 @@ database must still render, so dashboard panels degrade independently
   offers them via `GET /api/v1/public/packages` and submits
   `priceTierId`; every other programme submits `tier`. The STK route
   takes **exactly one** of the two and re-derives the charge from it.
+- `/register` deep links: `?tier=` names a code-table tier, `?package=`
+  names a `commercial_price_tier.tier_id`. Both outrank `?source=`.
+  `?package=` is resolved in the `selected` derivation rather than in
+  `pickedKey`'s initial state, because the academy list arrives over the
+  network after first render. Without it an academy CTA fell through to
+  `choices[0]` — the list is priced descending, so every Big Ice link
+  landed on the 350,000 cohort.
+- `commercial_price_tier.tier_name` is what a parent reads immediately
+  before entering their M-Pesa PIN. It must match the name on
+  bigice.co.ke. They drifted once ("Quarterly" vs "3-Month
+  Development"); `20260811090000_bigice_beginner_package.sql` realigned
+  them. Rename on the site → rename the row.
+
+**bigice.co.ke's programme `<select>` is a parsed contract.**
+`lib/services/bigice-pricing.ts` regexes the enquiry form's "Preferred
+programme" options out of the raw HTML — no JS is executed, so anything
+JS-rendered is invisible to it. The `value` slugs are frozen, the
+`Label — KSh 0,000` text shape is load-bearing, and fewer than seven
+priced options makes the whole scrape count as partial and fall back.
+`FALLBACK_TIERS` must equal what that markup parses to; the test asserts
+it. The site's `data.js` duplicates those prices and its `main.js`
+console-errors on drift at load.

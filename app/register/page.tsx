@@ -169,6 +169,11 @@ function RegisterForm() {
   const searchParams = useSearchParams();
   const urlTier = searchParams.get("tier");
   const urlSource = searchParams.get("source");
+  // ?package=<tier_id> is the academy equivalent of ?tier=. Big Ice
+  // cohorts live in commercial_price_tier, so they have no id in the code
+  // table and ?tier= can never name one — bigice.co.ke's "Choose 6 Months"
+  // button had no way to arrive here with 6 months selected.
+  const urlPackage = searchParams.get("package");
 
   // ?source= pre-selects the programme (that is what the NRHL and Big Ice
   // marketing links carry); the dropdown is how everyone else picks.
@@ -184,8 +189,11 @@ function RegisterForm() {
   const tierProgram = PROGRAMS.find(
     (p) => p.brand === TIERS.find((t) => t.id === urlTier)?.brand,
   )?.source;
+  // ?package= implies Big Ice for the same reason ?tier= implies its own
+  // brand: it names a specific purchase, and only one programme sells it.
   const [program, setProgram] = useState<ProgramSource>(
-    tierProgram ?? (isProgramSource(urlSource) ? urlSource : "nrhl"),
+    tierProgram ??
+      (urlPackage ? "bigice" : isProgramSource(urlSource) ? urlSource : "nrhl"),
   );
   // Big Ice cohorts come from the database; every other programme is
   // priced from the code table. Fetched once, not per programme switch.
@@ -213,7 +221,13 @@ function RegisterForm() {
           kind: "package" as const,
           label: p.label,
           amountKes: p.amountKes,
-          blurb: "Big Ice academy cohort — rink time, coaching, and development tracking.",
+          // Not "rink time": ice and rink hire are charged by the venue and
+          // are excluded from the programme fee on bigice.co.ke. Claiming
+          // it here would contradict the page the parent just came from,
+          // at the exact moment they are about to enter a PIN.
+          blurb:
+            "Big Ice academy cohort — coaching, structured training, assessment and " +
+            "progress reporting. Ice time / rink fees and event fees are billed separately.",
         }))
       : tierChoices(PROGRAMS.find((p) => p.source === program)!.brand);
 
@@ -224,7 +238,21 @@ function RegisterForm() {
   // selected — that is exactly the mismatch venture_context cannot
   // survive. Derived rather than synced by an effect, so there is never
   // an invalid intermediate state to submit from.
-  const selected = choices.find((c) => c.key === pickedKey) ?? choices[0] ?? null;
+  //
+  // ?package= resolves in the SAME derivation rather than in `pickedKey`'s
+  // initial state, because the academy list arrives from the network after
+  // first render — there is no initial state that could hold it. It sits
+  // below `pickedKey` so the moment a parent touches a radio their choice
+  // wins, and above `choices[0]` so an untouched deep link does not
+  // silently land on the most expensive cohort (the list is priced
+  // descending, so choices[0] is the 350,000 one). An unknown or malformed
+  // id simply fails to match and falls through — no validation needed,
+  // because only ids the server published can ever match.
+  const selected =
+    choices.find((c) => c.key === pickedKey) ??
+    choices.find((c) => c.key === urlPackage) ??
+    choices[0] ??
+    null;
   const [parentName, setParentName] = useState("");
   const [parentEmail, setParentEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");

@@ -18,6 +18,12 @@
       "runtimeExecutable": "py",
       "runtimeArgs": ["-m", "http.server", "4321", "--directory", "C:\\Users\\User Profile\\NRHL-Site"],
       "port": 4321
+    },
+    {
+      "name": "bigice-static",
+      "runtimeExecutable": "py",
+      "runtimeArgs": ["-m", "http.server", "4322", "--directory", "C:\\Users\\User Profile\\projects\\big-ice-site"],
+      "port": 4322
     }
   ]
 }
