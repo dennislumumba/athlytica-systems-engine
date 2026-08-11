@@ -13,9 +13,13 @@
 // assertion. An unauthenticated settlement endpoint would let any caller
 // forge a receipt string, flip PAYMENT_SETTLED, and authorize a draft
 // profile for free. Therefore every source carries an auth wall:
-//   * Machine rails (DARAJA_CALLBACK, BANK_RAIL): X-Callback-Secret
-//     header vs MPESA_CALLBACK_SECRET env (configure the secret in the
-//     Daraja/NCBA notification URL headers).
+//   * Machine rails (DARAJA_CALLBACK, BANK_RAIL): MPESA_CALLBACK_SECRET,
+//     presented EITHER as the X-Callback-Secret header (bank rails, ops
+//     tooling) OR as the final path segment of the callback URL —
+//     /api/v1/biz/mpesa-callback/<secret>, handled by [secret]/route.ts.
+//     The URL form exists because Safaricom posts to a registered URL and
+//     cannot attach a custom header; without it a real payment settles
+//     nowhere. DARAJA_CALLBACK_URL is therefore itself a secret.
 //   * MANUAL_RECON: X-Ops-Token vs OPS_CONSOLE_TOKEN (utils/opsGuard.ts)
 //     — a human reconciliation is an ops action, full stop.
 // Fail-closed: unset secrets seal the surface (403), never open it.
@@ -60,7 +64,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { verifyOpsToken, verifySecretHeader } from "@/utils/opsGuard";
+import { secretMatches, verifyOpsToken, verifySecretHeader } from "@/utils/opsGuard";
 import { settlePaymentGate } from "@/config/nrhl-gates";
 import { MPESA_PAYBILL } from "@/config/payment-rail";
 import { deliverOnboardingPack } from "@/lib/services/onboarding-delivery";
@@ -128,7 +132,23 @@ function respond(
   return NextResponse.json(payload, { status: httpStatus });
 }
 
-export async function POST(request: NextRequest) {
+/**
+ * The settlement handler.
+ *
+ * `urlSecret` is the secret presented in the callback URL's path, which
+ * is how the Daraja rail authenticates: Safaricom posts to a URL we
+ * registered and cannot attach a custom header, so the URL itself is the
+ * credential. Null for the header-authenticated entry point.
+ *
+ * It authorises MACHINE RAILS ONLY. MANUAL_RECON still demands the ops
+ * token below, because manual reconciliation can settle an arbitrary
+ * registration — a callback URL sitting in Safaricom's dashboard must
+ * never confer that.
+ */
+export async function settleFromRequest(
+  request: NextRequest,
+  urlSecret: string | null,
+): Promise<NextResponse> {
   let body: unknown;
   try {
     body = await request.json();
@@ -154,10 +174,12 @@ export async function POST(request: NextRequest) {
   const event = parsed.data;
 
   // 2. Source-appropriate auth wall — fail closed
-  const [machineAuthorized, opsAuthorized] = await Promise.all([
+  const [headerAuthorized, urlAuthorized, opsAuthorized] = await Promise.all([
     verifySecretHeader(request, "x-callback-secret", "MPESA_CALLBACK_SECRET"),
+    secretMatches(urlSecret, "MPESA_CALLBACK_SECRET"),
     verifyOpsToken(request),
   ]);
+  const machineAuthorized = headerAuthorized || urlAuthorized;
   const authorized =
     event.source === "MANUAL_RECON" ? opsAuthorized : machineAuthorized || opsAuthorized;
   if (!authorized) {
@@ -386,4 +408,12 @@ export async function POST(request: NextRequest) {
     },
     result.outcome === "SETTLED" ? 200 : 202,
   );
+}
+
+/**
+ * Header-authenticated entry point — bank rails, ops reconciliation, and
+ * anything that can set `X-Callback-Secret`. Unchanged behaviour.
+ */
+export async function POST(request: NextRequest) {
+  return settleFromRequest(request, null);
 }

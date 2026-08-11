@@ -34,9 +34,16 @@ async function sha256Hex(input: string): Promise<string> {
  * the named env secret exists (>= 16 chars) AND the caller presented a
  * matching header. Missing env, missing header, mismatch -> false.
  */
-export async function verifySecretHeader(
-  request: NextRequest,
-  headerName: string,
+/**
+ * Compare a presented secret against an env var, in constant time.
+ *
+ * Split out from `verifySecretHeader` because Safaricom cannot send a
+ * custom header: the Daraja settlement callback presents its secret in
+ * the callback URL instead. Both routes must judge a secret identically,
+ * so there is exactly one comparison and both call it.
+ */
+export async function secretMatches(
+  presented: string | null | undefined,
   envVar: string,
 ): Promise<boolean> {
   const expected = process.env[envVar];
@@ -44,11 +51,18 @@ export async function verifySecretHeader(
     // Unset or trivially short secret: surface stays sealed (SKL-003).
     return false;
   }
-  const presented = request.headers.get(headerName);
   if (!presented) return false;
 
   const [a, b] = await Promise.all([sha256Hex(expected), sha256Hex(presented)]);
   return a === b;
+}
+
+export async function verifySecretHeader(
+  request: NextRequest,
+  headerName: string,
+  envVar: string,
+): Promise<boolean> {
+  return secretMatches(request.headers.get(headerName), envVar);
 }
 
 /**
