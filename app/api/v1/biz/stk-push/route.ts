@@ -106,6 +106,23 @@ export async function POST(request: NextRequest) {
   }
   const input = parsed.data;
 
+  // Fail closed BEFORE touching the client. `adminClient()` asserts these
+  // with `!`, so an unprovisioned deployment threw inside createClient and
+  // Vercel answered 500 with an empty body — which the checkout page,
+  // parsing a non-JSON response, reported to the parent as "Network
+  // error". Config debt has to look like config debt (CLAUDE.md:
+  // "Unprovisioned env → 503 CONFIG_DEBT, never a made-up default").
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json(
+      {
+        success: false,
+        status: "CONFIG_DEBT",
+        error: "SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not provisioned.",
+      },
+      { status: 503 },
+    );
+  }
+
   const supabase = adminClient();
 
   // Server-priced tier. Two price sources, one law: the charge is

@@ -29,6 +29,13 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+// Imported, NOT referenced as /nrhl-hero.jpg from public/. This page is
+// served to parents through nairobihockey.com, whose vercel.json proxies
+// only /register, /api/v1/* and /_next/* to this app — so a root-relative
+// public asset resolved against the static site and 404'd. A static
+// import lands the file under /_next/static/media/, which is proxied.
+import heroImage from "./nrhl-hero.jpg";
+
 const PAYBILL = "4325935";
 const ADMISSIONS_PHONE = "+254 724 324 529";
 const ADMISSIONS_WA = "254724324529";
@@ -328,7 +335,11 @@ function RegistrationPage() {
           source: "nrhl",
         }),
       });
-      const body = (await res.json()) as {
+      // A crashed route answers 500 with an empty body, and `res.json()`
+      // on that throws — which landed in the catch below and told the
+      // parent "Network error" while their connection was fine. Parse
+      // defensively so an HTTP failure is reported as an HTTP failure.
+      const body = ((await res.json().catch(() => ({}))) ?? {}) as {
         success?: boolean;
         status?: string;
         error?: string;
@@ -341,8 +352,11 @@ function RegistrationPage() {
         // A fail-closed config error is a message to us, not to a parent
         // holding a phone. Never surface the reason; log it and route the
         // family to a human.
+        // Anything 5xx is ours, not the parent's — including a crash that
+        // returned no body at all. Only a 4xx carries something they can
+        // act on, so only a 4xx is allowed to speak for itself.
         const sealed =
-          res.status === 503 || body.status === "CONFIG_DEBT" || body.status === "SCHEMA_DEBT";
+          res.status >= 500 || body.status === "CONFIG_DEBT" || body.status === "SCHEMA_DEBT";
         if (sealed) {
           console.error("[register] checkout sealed:", body.status, body.error);
           inFlight.current = false;
@@ -497,7 +511,7 @@ function RegistrationPage() {
 
       <figure style={{ margin: "0 0 32px" }}>
         <img
-          src="/nrhl-hero.jpg"
+          src={heroImage.src}
           alt="An NRHL coach working with young athletes at a Nairobi training session"
           className="nrhl-hero"
         />
