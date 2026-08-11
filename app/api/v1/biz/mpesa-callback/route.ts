@@ -56,6 +56,7 @@ import { z } from "zod";
 import { verifyOpsToken, verifySecretHeader } from "@/utils/opsGuard";
 import { settlePaymentGate } from "@/config/nrhl-gates";
 import { MPESA_PAYBILL } from "@/config/payment-rail";
+import { deliverOnboardingPack } from "@/lib/services/onboarding-delivery";
 import {
   canonicalRegistrationReference,
   extractMsisdnFromReference,
@@ -285,11 +286,39 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // 9. Best-effort onboarding pack. Same law as the webhook above: the
+  //    registration is already durable, so a mail failure is a log line
+  //    for an administrator, never an error on a settled payment. It
+  //    cannot throw and it cannot hang (5s abort inside the mailer).
+  let onboardingDelivered = false;
+  if (result.outcome === "SETTLED" && result.registration_id) {
+    const delivery = await deliverOnboardingPack(
+      supabase,
+      result.registration_id,
+      result.receipt,
+    );
+    onboardingDelivered = delivery.delivered;
+    if (delivery.delivered) {
+      console.info(
+        `[onboarding] pack sent to ${delivery.to} — ${delivery.documents.join(", ")} ` +
+          `(${delivery.returning ? "returning" : "new"} athlete ${delivery.athleteId})`,
+      );
+    } else {
+      // The parent is registered and paid. Someone has to send this by
+      // hand, so it has to be visible.
+      console.error(
+        `[onboarding] PACK NOT SENT for registration ${result.registration_id} ` +
+          `(receipt ${result.receipt}): ${delivery.reason}`,
+      );
+    }
+  }
+
   return respond(
     event.source,
     {
       status: result.outcome, // SETTLED | SETTLED_UNMATCHED | SETTLED_UNDERPAID
       receipt: result.receipt,
+      onboardingDelivered,
       registrationId: result.registration_id ?? null,
       accountsProvisioned: result.outcome === "SETTLED" && Boolean(result.athlete_id),
       reconciliationRequired:
