@@ -43,6 +43,16 @@ export async function GET() {
     .order("price_amount", { ascending: false });
 
   if (error) {
+    // The generic client message stays — a public endpoint does not
+    // narrate the database. But the real reason has to reach the server
+    // log, or the next person debugging this gets "Package lookup
+    // failed" and nothing to act on. That cost a full diagnostic pass:
+    // the same query with the same credentials succeeded locally, which
+    // is what finally identified the deployed key as the difference.
+    console.error(
+      `[packages] commercial_price_tier lookup failed: ${error.code ?? "?"} ${error.message}` +
+        (error.hint ? ` — ${error.hint}` : ""),
+    );
     return NextResponse.json(
       { success: false, status: "SCHEMA_DEBT", error: "Package lookup failed." },
       { status: 503 },
