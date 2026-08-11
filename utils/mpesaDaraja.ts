@@ -154,12 +154,32 @@ export async function initiateStkPush(params: {
       errorMessage?: string;
     };
 
+    // WHICH HOST ANSWERED is the single most useful fact when a push is
+    // "accepted" and no prompt arrives: the sandbox accepts every valid
+    // request with ResponseCode 0 and delivers nothing to a real handset,
+    // which is indistinguishable from success everywhere else in this
+    // system. DARAJA_ENV must be exactly "production" — anything else,
+    // including "Production", silently selects the sandbox.
+    // No secrets here: the shortcode is a published paybill, and the
+    // request ids are what Daraja's own status query takes.
+    const host = new URL(config.baseUrl).host;
+
     if (!res.ok || body.ResponseCode !== "0") {
-      return {
-        dispatched: false,
-        reason: body.errorMessage ?? `Daraja STK request rejected (HTTP ${res.status}).`,
-      };
+      const reason = body.errorMessage ?? `Daraja STK request rejected (HTTP ${res.status}).`;
+      console.error(
+        `[daraja] STK rejected via ${host} shortcode ${config.shortcode}: ` +
+          `HTTP ${res.status} ResponseCode ${body.ResponseCode ?? "none"} — ${reason}`,
+      );
+      return { dispatched: false, reason };
     }
+
+    console.info(
+      `[daraja] STK accepted via ${host} shortcode ${config.shortcode} ` +
+        `merchant ${body.MerchantRequestID ?? "?"} checkout ${body.CheckoutRequestID ?? "?"}` +
+        (host.includes("sandbox")
+          ? " — SANDBOX: no prompt will reach a real handset. Set DARAJA_ENV=production."
+          : ""),
+    );
 
     return {
       dispatched: true,
