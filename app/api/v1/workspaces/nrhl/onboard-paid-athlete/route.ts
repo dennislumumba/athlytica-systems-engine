@@ -20,7 +20,7 @@
 // WHERE THE PARENT RECORD GOES: both places, because they hold
 // different things. athlytica_core.parents is the core identity row and
 // carries only (phone_number, is_verified) — it is written through
-// public.nrhl_link_guardian(), a definer RPC, because athlytica_core is
+// public.link_guardian(), a definer RPC, because athlytica_core is
 // not exposed to PostgREST. The resulting parent_id is stored on
 // nrhl_athlete.core_parent_id. Guardian name, email and the media
 // consent election have no column in athlytica_core.parents, so they
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
   // A failure here must not lose the registration — the guardian fields
   // on nrhl_athlete are written either way and the link can be repaired.
   let coreParentId: string | null = null;
-  const { data: parentId, error: parentError } = await db.rpc("nrhl_link_guardian", {
+  const { data: parentId, error: parentError } = await db.rpc("link_guardian", {
     p_phone_e164: input.guardianPhone,
   });
   if (!parentError && typeof parentId === "string") coreParentId = parentId;

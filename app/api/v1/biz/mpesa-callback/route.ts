@@ -33,7 +33,14 @@
 // atomic account construction (users/athletes/athlete_tenant_links) +
 // gate evidence all execute inside the settle_payment_transaction RPC
 // (v2: supabase/migrations/20260713100000_registration_sessions_v2.sql).
-// This route performs no direct table writes.
+// This route performs no direct table writes on the SETTLEMENT path.
+//
+// POST-SETTLEMENT SIDE EFFECTS run after that transaction commits and
+// deliberately outside it: the draft-authorization webhook, the NRHL
+// onboarding pack, and Big Ice athlete/enrollment creation. Each is
+// best-effort and none may fail a settled payment (§55) — money truth is
+// already durable by the time they run, so their failure mode is a log
+// line for an administrator, never a non-200 to the gateway.
 //
 // RESOLUTION ROUTER (Workflow Inversion Pattern, W-6):
 // Incoming account references are polymorphic. Before dispatching to the
@@ -57,6 +64,8 @@ import { verifyOpsToken, verifySecretHeader } from "@/utils/opsGuard";
 import { settlePaymentGate } from "@/config/nrhl-gates";
 import { MPESA_PAYBILL } from "@/config/payment-rail";
 import { deliverOnboardingPack } from "@/lib/services/onboarding-delivery";
+import { onboardBigIceAthlete } from "@/lib/services/bigice-onboarding";
+import { deliverBigIcePack } from "@/lib/services/bigice-delivery";
 import {
   canonicalRegistrationReference,
   extractMsisdnFromReference,
@@ -313,12 +322,63 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // 10. Big Ice athlete identity + enrollment. Same ordering law as the
+  //     two steps above: settlement is already durable, so this can fail
+  //     without costing the family anything, and it self-selects on
+  //     venture_context — NRHL and Athlytica registrations pass straight
+  //     through. It cannot throw (§55).
+  let bigIceAthleteCode: string | null = null;
+  let bigIceReviewRequired = false;
+  let bigIcePackDelivered = false;
+  if (result.outcome === "SETTLED" && result.registration_id) {
+    const onboarding = await onboardBigIceAthlete(supabase, result.registration_id, result.receipt);
+    if (onboarding.onboarded) {
+      bigIceAthleteCode = onboarding.biifCode;
+      console.info(
+        `[bigice] ${onboarding.minted ? "minted" : "matched"} ${onboarding.biifCode} ` +
+          `for registration ${result.registration_id} (receipt ${result.receipt})`,
+      );
+
+      // Pack generation is recorded even when the send fails, so this
+      // reports what a family actually received rather than what we
+      // meant to send.
+      const pack = await deliverBigIcePack(supabase, {
+        biifCode: onboarding.biifCode,
+        registrationId: result.registration_id,
+        receipt: result.receipt,
+        returning: onboarding.returning,
+      });
+      bigIcePackDelivered = pack.delivered;
+      if (pack.delivered) {
+        console.info(
+          `[bigice] pack sent to ${pack.to} — ${pack.documents.join(", ")} (${onboarding.biifCode})`,
+        );
+      } else {
+        console.error(
+          `[bigice] PACK NOT SENT for ${onboarding.biifCode} (receipt ${result.receipt}): ` +
+            `${pack.reason}${pack.documents.length ? ` — generated: ${pack.documents.join(", ")}` : ""}`,
+        );
+      }
+    } else if (onboarding.reviewRequired) {
+      // Paid, but no athlete record. A person has to resolve this, so it
+      // has to be visible — and the receipt is here to resolve it with.
+      bigIceReviewRequired = true;
+      console.error(
+        `[bigice] ONBOARDING PENDING for registration ${result.registration_id} ` +
+          `(receipt ${result.receipt}): ${onboarding.reason}`,
+      );
+    }
+  }
+
   return respond(
     event.source,
     {
       status: result.outcome, // SETTLED | SETTLED_UNMATCHED | SETTLED_UNDERPAID
       receipt: result.receipt,
       onboardingDelivered,
+      bigIceAthleteCode,
+      bigIceReviewRequired,
+      bigIcePackDelivered,
       registrationId: result.registration_id ?? null,
       accountsProvisioned: result.outcome === "SETTLED" && Boolean(result.athlete_id),
       reconciliationRequired:

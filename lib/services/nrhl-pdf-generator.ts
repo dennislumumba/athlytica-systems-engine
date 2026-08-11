@@ -23,9 +23,42 @@ export const NRHL_BRAND = {
   sheen: "#0e2749",
   gold: "#D4AF37",
   goldSoft: "#F4E4B7",
+  /** Screen gold is too light on paper; issued documents use this. */
+  goldPrint: "#c8a94a",
   text: "#D9E5F2",
   muted: "#8CA0B8",
 } as const;
+
+/**
+ * Big Ice is a separate identity, not a skin on the league's (§8, §60):
+ * a brighter gold and a lighter navy, aimed at a parent rather than a
+ * competitor. `page()` takes whichever palette the document belongs to,
+ * so the two brands share a print shell without sharing a look.
+ */
+export const BIG_ICE_BRAND = {
+  navy: "#0A1B33",
+  navy2: "#12294A",
+  sheen: "#1B3A66",
+  gold: "#FFC629",
+  goldSoft: "#FFE49B",
+  goldPrint: "#B58100",
+  text: "#E8EEF7",
+  muted: "#93A7C4",
+} as const;
+
+/** Structural, not `typeof NRHL_BRAND` — the const assertion there
+ *  narrows every value to its own literal, which no second palette can
+ *  satisfy. */
+export interface BrandPalette {
+  readonly navy: string;
+  readonly navy2: string;
+  readonly sheen: string;
+  readonly gold: string;
+  readonly goldSoft: string;
+  readonly goldPrint: string;
+  readonly text: string;
+  readonly muted: string;
+}
 
 /** HTML-escape. Every interpolated value goes through this. */
 export function esc(value: unknown): string {
@@ -52,12 +85,18 @@ export function page(opts: {
   body: string;
   ink?: "screen" | "print";
   footnote?: string;
+  /** Defaults to NRHL; Big Ice documents pass BIG_ICE_BRAND. */
+  brand?: BrandPalette;
+  /** Footer identity. Defaults to the league's; Big Ice passes its own. */
+  entity?: string;
+  contact?: string;
 }): string {
+  const brand = opts.brand ?? NRHL_BRAND;
   const print = opts.ink !== "screen";
-  const bg = print ? "#ffffff" : NRHL_BRAND.navy;
-  const fg = print ? "#0b1220" : NRHL_BRAND.text;
-  const rule = print ? "#c8a94a" : NRHL_BRAND.gold;
-  const soft = print ? "#5b6b80" : NRHL_BRAND.muted;
+  const bg = print ? "#ffffff" : brand.navy;
+  const fg = print ? "#0b1220" : brand.text;
+  const rule = print ? brand.goldPrint : brand.gold;
+  const soft = print ? "#5b6b80" : brand.muted;
 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
@@ -105,7 +144,7 @@ export function page(opts: {
   <div class="rule"></div>
   ${opts.body}
   <footer>
-    ${esc(LEGAL_ENTITY)}<br>${esc(CONTACT)}<br>
+    ${esc(opts.entity ?? LEGAL_ENTITY)}<br>${esc(opts.contact ?? CONTACT)}<br>
     ${opts.footnote ? `${esc(opts.footnote)}<br>` : ""}
     Issued via Athlytica HQ · ${esc(new Date().toISOString().slice(0, 10))}
   </footer>
