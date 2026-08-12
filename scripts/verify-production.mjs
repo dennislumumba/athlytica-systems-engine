@@ -48,23 +48,33 @@ function token() {
 }
 
 const { projectId, orgId } = JSON.parse(readFileSync('.vercel/project.json', 'utf8'));
-const res = await fetch(
-  `https://api.vercel.com/v9/projects/${projectId}?teamId=${orgId}`,
-  { headers: { Authorization: `Bearer ${token()}` } },
-);
-if (!res.ok) throw new Error(`Vercel API ${res.status}: ${await res.text()}`);
-const project = await res.json();
+const bearer = token();
+
+async function api(path) {
+  const res = await fetch(`https://api.vercel.com${path}?teamId=${orgId}`, {
+    headers: { Authorization: `Bearer ${bearer}` },
+  });
+  if (!res.ok) throw new Error(`Vercel API ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+const project = await api(`/v9/projects/${projectId}`);
+const prod = project.targets?.production;
+// `source` and `gitSource` only exist on the deployment itself, never on the
+// project's production target summary. Without this second read the check
+// that matters most — Git, not a hand-rolled upload — silently reads as undefined.
+const deployment = prod ? await api(`/v13/deployments/${prod.id}`) : null;
 
 const expected = execSync('git rev-parse HEAD').toString().trim();
-const prod = project.targets?.production;
-const sha = prod?.meta?.githubCommitSha ?? null;
+const sha = deployment?.gitSource?.sha ?? prod?.meta?.githubCommitSha ?? null;
 const branch = project.link?.productionBranch ?? null;
 
 const checks = [
   ['production branch is main', branch === 'main', branch],
   ['a production deployment exists', !!prod, prod?.id ?? 'none'],
-  ['it built successfully', prod?.readyState === 'READY', prod?.readyState],
-  ['it came from Git, not a CLI upload', prod?.source === 'git', prod?.source],
+  ['it built successfully', deployment?.readyState === 'READY', deployment?.readyState],
+  ['it came from Git, not a CLI upload', deployment?.source === 'git', deployment?.source],
+  ['it built the branch we push to', deployment?.gitSource?.ref === 'main', deployment?.gitSource?.ref],
   ['it is the commit checked out here', sha === expected, `${sha} vs HEAD ${expected}`],
   [
     'the production alias points at it',
