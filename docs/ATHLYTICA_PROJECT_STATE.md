@@ -12,7 +12,7 @@ repository, without any prior conversation.
 | | |
 |---|---|
 | **Timestamp** | 2026-08-12 (Phase 0.3E) |
-| **Commit** | `182ab72` — *feat(payments): a settlement is money truth, not permission to create an athlete* (0.3D + 0.3E + 0.3F). Not yet pushed. |
+| **Commit** | `67b2cef` — *feat(payments): a settlement is money truth, not permission to create an athlete* (0.3D + 0.3E + 0.3F). Not yet pushed. |
 | **Working tree** | clean. |
 | **Supabase project** | `qxfrypvevjsyzkquewxh` |
 | **Applied migrations** | **34** — M2 `20260812083829_record_classification`, M3 `20260812122254_m3_payment_replay_integrity`, **M4 `20260812172530_m4_payment_authorization_boundary`** |

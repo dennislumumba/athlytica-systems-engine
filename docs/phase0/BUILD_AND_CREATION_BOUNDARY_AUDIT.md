@@ -356,7 +356,7 @@ before this phase.
 
 ## 10. Commit
 
-`0.3D + 0.3E + 0.3F` committed as one foundation commit: **`182ab72`**. The concurrent `performance/route.ts`
+`0.3D + 0.3E + 0.3F` committed as one foundation commit: **`67b2cef`**. The concurrent `performance/route.ts`
 corruption was **reverted, not committed**, and no other concurrent work
 was bundled.
 
