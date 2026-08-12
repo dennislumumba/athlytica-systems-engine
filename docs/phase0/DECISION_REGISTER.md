@@ -454,11 +454,53 @@ Live status is always in [`docs/ATHLYTICA_PROJECT_STATE.md`](../ATHLYTICA_PROJEC
 | D-21 | Is `SGX7HQ2LM9` a real customer payment? | **CLOSED 2026-08-12 — NO.** Owner checked the Safaricom statement; the receipt is absent. All five `payment_events` are synthetic; production has never processed a real payment. |
 | D-22 | Test / production record classification | **CLOSED 2026-08-12.** `record_classification` applied (`20260812083829`), 5 rows classified TEST. Database consumer `payment_events_production` added by M3. **Application consumers migrated in Phase 0.3C** — `dashboard` `railTotalKes` and `cash-watcher` now read the view. Guarded by `tests/payment-revenue-source.test.mts`. |
 | D-23 | Payment replay integrity + `G-W6-PAY` evidence | **CLOSED 2026-08-12.** M3 applied (`20260812122254`), tested 19/19 pre-apply including the critical regression. Duplicate ≠ conflicting replay: identical immutable attributes → idempotent `DUPLICATE`; any difference → `RECONCILIATION_REQUIRED` with evidence preserved and nothing settled. Gate reset to `live=false`. |
+| D-24 | Payment authorization boundary (F-1…F-5) | **CLOSED 2026-08-12 (Phase 0.3E).** M4 applied (`20260812172530`), tested 29/29 pre-apply. See below. |
+| D-25 | A second M-Pesa integration is being written outside the `DARAJA_*` rail | **OPEN — raised Phase 0.3F.** A complete STK client (`sendStkPush`, `getMpesaToken`, `normalizeKenyanPhone`) was found pasted into `app/api/v1/performance/route.ts`, where it broke the build. It uses six `MPESA_*` env vars that **do not exist** in this project, duplicates `utils/mpesaDaraja.ts` and `utils/msisdn.ts`, and pushes a **client-supplied amount** — violating "Money is never client-priced". Reverted, not adopted; preserved as a patch. **Two STK clients with two env namespaces against one Paybill is how a payment stops arriving.** Reconcile before any of it lands. |
+| D-26 | Is the Google Forms channel a **paid** or **unpaid** intake? | **OPEN — raised Phase 0.3F.** `onboard_athlete_from_google_form` writes `cohort_session_registry.enrollment_status = 'enrolled'` against a priced `commercial_price_tier` row with **no payment anywhere in the path**. 7 such rows exist in production. Contained (cannot reach portal, documents or revenue — see `BUILD_AND_CREATION_BOUNDARY_AUDIT.md` §7) but semantically it is an unpaid entitlement. **Paid** ⇒ it needs the M4 boundary and should start `pending_payment`. **Unpaid** ⇒ the status value is wrong and should say waitlist/registered. Not guessed; nothing changed. |
 | OPS-1 | Billable Supabase branch for RLS testing | **CLOSED — not needed.** Org is on the free plan; R1–R12 ran read-only at zero cost, and a branch would not have unblocked R4–R8 (canonical tables don't exist). Owner chose local Docker; not yet installed. |
+
+---
+
+### D-24 · Payment authorization boundary
+
+**Decision.** What must be true before a payment may create customer value?
+
+**Answer, as implemented.** Service authorization requires **positive
+server-derived evidence** and defaults to `NOT_AUTHORIZED` — the opposite
+default from revenue classification (D-22), which is `PRODUCTION` by
+absence. Both fail safe; they fail safe in opposite directions because the
+cost of being wrong points the opposite way. A forgotten classification
+should over-count revenue; it must never mint a permanent Athlete ID.
+
+This is what makes F-1 solvable at all. "Has someone marked this receipt as
+a test?" is unanswerable on first arrival, because the receipt is minted by
+Safaricom and first seen in the callback. "Did this payment match a
+registration created by the production intake funnel, on the production
+rail, un-classified and un-disputed?" is answerable immediately.
+
+**Authoritative rule:** `public.payment_service_authorization`, reached only
+via `lib/services/payment-authorization.ts`. Consumers: `mpesa-callback`,
+`retry-onboarding`, `onboard-paid-athlete`. Nothing re-implements it.
+
+**Evidence it is sound:** all five synthetic `payment_events` match zero
+registrations and are denied **without any classification row** (test 25).
+The rule would have blocked all five on first arrival, before M2 existed.
+
+**Venture:** a payment's venture is the `venture_context` of the
+registration it matched — never inferred from amount, phone, receipt shape
+or price. Cross-venture households reconcile rather than guess.
+
+**Risk if wrong:** low and bounded. The boundary only ever *denies*; a
+false denial is a support ticket, a false grant is a permanent identity.
+Three non-payment issuance paths (`nrhl/ingest`, `google-forms`, the unused
+`athlytica_core` trigger) are deliberately out of scope — see
+`PAYMENT_AUTHORIZATION_BOUNDARY.md` §16.
+
+---
 
 ## Decisions closed to date
 
-**D-21, D-22, D-23, OPS-1.** Everything else in this register remains open.
+**D-21, D-22, D-23, D-24, OPS-1.** Everything else in this register remains open.
 
 **Nothing in the migration approval checklist above has been ticked.** The
 closed decisions are containment work on the *live* system; none of them

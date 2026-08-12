@@ -39,6 +39,10 @@ import { z } from "zod";
 import { verifyOpsToken } from "@/utils/opsGuard";
 import { onboardBigIceAthlete } from "@/lib/services/bigice-onboarding";
 import { deliverBigIcePack } from "@/lib/services/bigice-delivery";
+import {
+  authorizePaymentForService,
+  mayCreateCustomerValue,
+} from "@/lib/services/payment-authorization";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -134,6 +138,37 @@ export async function POST(request: NextRequest) {
         error: `This route recovers Big Ice onboarding; the registration is ${data.venture_context ?? "unassigned"}.`,
       },
       { status: 422 },
+    );
+  }
+
+  // THE AUTHORIZATION BOUNDARY (F-2). PAYMENT_SETTLED above proves money
+  // moved. It does not prove the payment may create customer value, and
+  // the difference is the entire point of this check: the remediation
+  // workflow record_classification exists to support is "settle, discover
+  // it was a test, classify it" — which used to leave this button able to
+  // mint a permanent Athlete ID for a settlement the business had already
+  // declared synthetic.
+  //
+  // BIG_ICE is passed explicitly, not read from the registration, so the
+  // venture this route acts on and the venture it authorizes against
+  // cannot drift apart. The venture_context check above already refused
+  // anything else.
+  const authorization = await authorizePaymentForService(db, data.settled_receipt, "BIG_ICE");
+  if (!mayCreateCustomerValue(authorization)) {
+    return NextResponse.json(
+      {
+        success: false,
+        status: authorization.status,
+        error:
+          authorization.status === "RECONCILIATION_REQUIRED"
+            ? "This payment is under reconciliation; onboarding cannot be re-driven until it is resolved."
+            : "This payment is not authorized to create production customer value.",
+        // Ops-only surface behind a token — the operator needs the real
+        // reason, which is the whole point of pressing the button.
+        reason: authorization.reason,
+        athleteId: null,
+      },
+      { status: 409 },
     );
   }
 

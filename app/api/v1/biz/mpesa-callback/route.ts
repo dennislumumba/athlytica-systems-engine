@@ -71,6 +71,11 @@ import { deliverOnboardingPack } from "@/lib/services/onboarding-delivery";
 import { onboardBigIceAthlete } from "@/lib/services/bigice-onboarding";
 import { deliverBigIcePack } from "@/lib/services/bigice-delivery";
 import {
+  authorizePaymentForService,
+  mayCreateCustomerValue,
+  type Venture,
+} from "@/lib/services/payment-authorization";
+import {
   canonicalRegistrationReference,
   extractMsisdnFromReference,
   getMsisdnHashKey,
@@ -274,13 +279,27 @@ export async function settleFromRequest(
     );
   }
 
+  // The full outcome set. TEST_CLASSIFIED and RECONCILIATION_REQUIRED were
+  // added by M3 and AMBIGUOUS_VENTURE routing by M4; until 0.3E this union
+  // listed neither, so both fell through every branch and were reported as
+  // an unremarkable 202. They are named here so the compiler forces a
+  // decision about each one rather than leaving safety to the fact that
+  // none of them happens to equal "SETTLED".
   const result = data as {
-    outcome: "DUPLICATE" | "SETTLED" | "SETTLED_UNMATCHED" | "SETTLED_UNDERPAID";
+    outcome:
+      | "DUPLICATE"
+      | "SETTLED"
+      | "SETTLED_UNMATCHED"
+      | "SETTLED_UNDERPAID"
+      | "TEST_CLASSIFIED"
+      | "RECONCILIATION_REQUIRED";
     receipt: string;
     ledger_id?: string;
     registration_id?: string | null;
     user_id?: string | null;
     athlete_id?: string | null;
+    venture_context?: string | null;
+    reason?: string;
     amount_expected_kes?: number;
     amount_received_kes?: number;
   };
@@ -290,10 +309,39 @@ export async function settleFromRequest(
     return respond(event.source, { status: "DUPLICATE", receipt: result.receipt }, 200);
   }
 
+  // 7b. THE AUTHORIZATION BOUNDARY. A settlement is money truth; it is not
+  //     permission to create an athlete. Asked once, here, and the answer
+  //     governs every side effect below — nothing downstream re-derives it
+  //     from payment_status or from the outcome string.
+  //
+  //     The venture comes from the registration the RPC actually matched,
+  //     never from the callback body: a payer cannot nominate the venture
+  //     their money settles.
+  const settledVenture = (result.venture_context ?? null) as Venture | null;
+  const authorization =
+    result.outcome === "SETTLED" && result.registration_id && settledVenture
+      ? await authorizePaymentForService(supabase, result.receipt, settledVenture)
+      : ({
+          status: "NOT_AUTHORIZED",
+          receipt: result.receipt,
+          reason: `OUTCOME_${result.outcome}`,
+        } as const);
+
+  const serviceAuthorized = mayCreateCustomerValue(authorization);
+  if (!serviceAuthorized && result.outcome === "SETTLED") {
+    // Money arrived and matched, but the boundary refused. That is a state
+    // a person has to see: it is either a classified test settling through
+    // the funnel, or a real payment the system will not act on.
+    console.error(
+      `[settlement] SETTLED but NOT authorized for service — receipt ${result.receipt}, ` +
+        `venture ${settledVenture ?? "unknown"}: ${authorization.reason}`,
+    );
+  }
+
   // 8. Best-effort draft-authorization webhook (telemetry-route pattern:
   //    durability lives in the DB state, not the dispatch). Fires only
   //    for a matched registration on first settlement.
-  if (result.outcome === "SETTLED" && result.registration_id && process.env.DRAFT_AUTH_WEBHOOK_URL) {
+  if (serviceAuthorized && result.registration_id && process.env.DRAFT_AUTH_WEBHOOK_URL) {
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
@@ -322,7 +370,7 @@ export async function settleFromRequest(
   //    for an administrator, never an error on a settled payment. It
   //    cannot throw and it cannot hang (5s abort inside the mailer).
   let onboardingDelivered = false;
-  if (result.outcome === "SETTLED" && result.registration_id) {
+  if (serviceAuthorized && result.registration_id) {
     const delivery = await deliverOnboardingPack(
       supabase,
       result.registration_id,
@@ -352,7 +400,7 @@ export async function settleFromRequest(
   let bigIceAthleteCode: string | null = null;
   let bigIceReviewRequired = false;
   let bigIcePackDelivered = false;
-  if (result.outcome === "SETTLED" && result.registration_id) {
+  if (serviceAuthorized && result.registration_id) {
     const onboarding = await onboardBigIceAthlete(supabase, result.registration_id, result.receipt);
     if (onboarding.onboarded) {
       bigIceAthleteCode = onboarding.biifCode;
@@ -392,21 +440,38 @@ export async function settleFromRequest(
     }
   }
 
+  // 11. HONEST REPORTING. reconciliationRequired used to be derived from
+  //     two outcomes and therefore read FALSE for RECONCILIATION_REQUIRED —
+  //     the one verdict that exists to demand a human. It is now derived
+  //     from the authorization answer, which knows about all of them, plus
+  //     the two settled-but-imperfect outcomes that also need a look.
+  const reconciliationRequired =
+    authorization.status === "RECONCILIATION_REQUIRED" ||
+    result.outcome === "RECONCILIATION_REQUIRED" ||
+    result.outcome === "SETTLED_UNMATCHED" ||
+    result.outcome === "SETTLED_UNDERPAID";
+
   return respond(
     event.source,
     {
-      status: result.outcome, // SETTLED | SETTLED_UNMATCHED | SETTLED_UNDERPAID
+      // The RPC's verdict, verbatim — including TEST_CLASSIFIED and
+      // RECONCILIATION_REQUIRED, which used to be invisible to the caller.
+      status: result.outcome,
       receipt: result.receipt,
+      // Whether the payment may create customer value, stated separately
+      // from whether money moved. They are different questions and the
+      // caller is entitled to both answers.
+      serviceAuthorization: authorization.status,
+      authorizationReason: authorization.reason,
       onboardingDelivered,
       bigIceAthleteCode,
       bigIceReviewRequired,
       bigIcePackDelivered,
       registrationId: result.registration_id ?? null,
-      accountsProvisioned: result.outcome === "SETTLED" && Boolean(result.athlete_id),
-      reconciliationRequired:
-        result.outcome === "SETTLED_UNMATCHED" || result.outcome === "SETTLED_UNDERPAID",
+      accountsProvisioned: serviceAuthorized && Boolean(result.athlete_id),
+      reconciliationRequired,
     },
-    result.outcome === "SETTLED" ? 200 : 202,
+    result.outcome === "SETTLED" && serviceAuthorized ? 200 : 202,
   );
 }
 

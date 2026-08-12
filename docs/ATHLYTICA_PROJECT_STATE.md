@@ -11,13 +11,15 @@ repository, without any prior conversation.
 
 | | |
 |---|---|
-| **Timestamp** | 2026-08-12 (Phase 0.3C) |
-| **Commit** | `658936e` — *docs(foundation): what the athlete record must be, before anything is written to it* |
-| **Working tree** | clean except `next-env.d.ts` (generated); docs committed and pushed to `main` |
+| **Timestamp** | 2026-08-12 (Phase 0.3E) |
+| **Commit** | `182ab72` — *feat(payments): a settlement is money truth, not permission to create an athlete* (0.3D + 0.3E + 0.3F). Not yet pushed. |
+| **Working tree** | clean. |
 | **Supabase project** | `qxfrypvevjsyzkquewxh` |
-| **Applied migrations** | **33** — M2 `20260812083829_record_classification`, M3 `20260812122254_m3_payment_replay_integrity` |
-| **Local migration files** | **34** — the two newest (M2, M3) are the **only** files whose names match their applied versions (D-16 pattern) |
-| **Test suite** | `node --test "tests/**/*.test.mts"` → **146 pass / 0 fail** (142 baseline + 4 new revenue-source guards, Phase 0.3C) |
+| **Applied migrations** | **34** — M2 `20260812083829_record_classification`, M3 `20260812122254_m3_payment_replay_integrity`, **M4 `20260812172530_m4_payment_authorization_boundary`** |
+| **Local migration files** | **35** — the three newest (M2, M3, M4) are the **only** files whose names match their applied versions (D-16 pattern) |
+| **Test suite** | `node --test "tests/**/*.test.mts"` → **171 pass / 0 fail** |
+| **Typecheck** | `npx tsc --noEmit` → **clean** (0.3F repaired `app/api/v1/performance/route.ts`) |
+| **Mutation coverage** | **11 / 11 caught** — every externally reachable athlete-creation route has a guard that fails when broken |
 
 ### Row counts (read-only verification)
 
@@ -31,7 +33,7 @@ repository, without any prior conversation.
 | `bigice_enrollment` | **0** |
 | `bigice_document` | **0** |
 | `nrhl_athlete` | **0** |
-| `registrations` | 1 |
+| `registrations` | **2** — `ATH-9YWQ` (NRHL, 27,500) + `ATH-WKTR` (BIG_ICE academy, 180,000, arrived 2026-08-12 13:38). **Same household, two ventures** — the live F-5 case. |
 | `payment_events` | 5 (all classified TEST) |
 | `record_classification` | **5** (new) |
 | `gate_states` | 1 (**G-W6-PAY now live=false, evidence=null**) |
@@ -51,11 +53,11 @@ repository, without any prior conversation.
 | **Athlete ID sequence** | `scalable_id_sequence = 504`. Moved 500 → 504 during Phase 0.1 with **zero athlete rows persisted** — 4 codes burned. Root cause found (see R15). New canonical `athlytica_id_seq` **not created**. |
 | **RLS** | Still **disabled** on all 4 `athlytica_core` tables, and advisor `rls_disabled` still red — but **R1–R12 executed 2026-08-12 and the exposure it warns about does not exist**: every client role is denied at the schema level. 12 probes run, 12 pass. R4–R8 blocked because the canonical tables they test **do not exist yet** (Phase 1), not because of the environment. Containment script rewritten to add RLS without adding grants. See `phase0/RLS_TEST_RESULTS.md`. |
 | **Payments** | **Replay integrity live (M3).** Duplicate = all immutable attrs equal → idempotent no-op. Any attr differs → `RECONCILIATION_REQUIRED`, evidence preserved in `payment_reconciliation_exception`, nothing settled, stored event never modified. Pre-classified TEST receipts return `TEST_CLASSIFIED` and cannot flip the gate or settle. 5 `payment_events`, all `SETTLED_UNMATCHED` — **none matches any registration**. **All five are classified TEST** in `record_classification` (M2, applied 2026-08-12): PRODUCTION revenue reads KES 0.00. **All five are synthetic** (`AUDITTEST001-004` + `SGX7HQ2LM9`, the last confirmed absent from the Safaricom statement by the owner, 2026-08-12). **Production has never processed a real payment.** Table remains append-only by trigger — the 5 rows were classified, never modified. |
-| **Registration** | 1 row: `ATH-9YWQ`, NRHL, `combine_27500`, athlete "Adonis", still `PENDING_PAYMENT`, STK pushed 2026-08-11 19:10. |
+| **Registration** | **2 rows, one household, two ventures.** `ATH-9YWQ` (NRHL `combine_27500`, 27,500, STK 2026-08-11 19:10) and `ATH-WKTR` (BIG_ICE academy, 180,000, arrived 2026-08-12 13:38). Both `PENDING_PAYMENT`, athlete "Adonis". This is the live F-5 case: before M4 a payment from that phone matching neither amount would have settled whichever was pushed most recently, regardless of venture. Under M4 it is `RECONCILIATION_REQUIRED`. |
 | **Guardian** | `likeEscape` authorization fix **committed to `main`** (`0441e0c`). Unit-tested. **Not integration-tested against a database.** |
 | **Onboarding** | Big Ice path live (`lib/services/bigice-onboarding.ts`). NRHL path live (`app/api/v1/workspaces/nrhl/onboard-paid-athlete`). **Both mint an athlete code outside the insert transaction** — see R15. |
 | **Portal** | `resolveGuardian()` reads `bigice_athlete` by `guardian_email` ILIKE. 0 rows, so no exposure today. |
-| **Migration state** | **33 applied / 34 local files; exactly two versions match** — `20260812083829_record_classification` (M2) and `20260812122254_m3_payment_replay_integrity` (M3), both aligned deliberately. The other 32 do not. Cause: `apply_migration` stamps `to_char(current_timestamp,…)`. `supabase db push` **must not be run**. |
+| **Migration state** | **34 applied / 35 local files; exactly three versions match** — M2 `20260812083829`, M3 `20260812122254`, M4 `20260812172530`, all aligned deliberately. The other 32 do not. Cause: `apply_migration` stamps `to_char(current_timestamp,…)` — **M4 hit this trap during 0.3E** (written as `…164500`, applied as `…172530`) and the local files were renamed to match. `supabase db push` **must not be run**. |
 | **Legacy data** | **Nothing migrated.** ~3,096 session rows, 209 athlete IDs across 23 `SOURCE_CANDIDATE` CSVs. No file is authoritative. |
 | **Metrics** | Registry v2: 27 VERIFIED / 2 INFERRED / 4 UNKNOWN / 1 DEPRECATED. **Not finalised** — 5 blockers. |
 | **Certificates** | `NRHL-COMP-v1` reproduces exactly, but is **structurally unsafe** (DQ-050). `nrhl_athlete` is empty, so nothing is issued from the system. Freeze recommended. |
@@ -126,6 +128,8 @@ repository, without any prior conversation.
 
 What prevents Phase 1, in order of what unblocks the most:
 
+0. **D-26 — Google Forms intake is paid or unpaid?** 7 unpaid `enrolled`
+   rows against a priced tier. Only live semantic error in production data.
 1. **D-04 — no authoritative source.** All 23 local CSVs are `SOURCE_CANDIDATE`. Four workbook tabs are missing locally, including `Certificate Tracker`. **Nothing may be migrated until a fresh 16-tab export exists.**
 2. **Docker not installed → no isolated environment.** R1–R12 are **done** (12/12 pass, executed read-only against production, Phase 0.2). What still needs a local stack: the `FORCE ROW LEVEL SECURITY` vs `SECURITY DEFINER` question, R11, R12, migration dry run (gate 18), rollback test (gate 17), and the D-20 fix verification. Phase 0.3 §4 was **stopped** for this reason.
 3. **D-20 — ID issuance is not transactional.** Root cause proven: `bigice-onboarding.ts:190` mints via RPC, `:200` inserts in a separate transaction. Correction (M1) designed, **not implemented**.
@@ -163,6 +167,32 @@ Investigations already completed. Do not redo these without new evidence.
 ---
 
 ## NEXT ACTION
+
+> **Answer D-26: is the Google Forms channel a paid or an unpaid intake?**
+>
+> It is the only live semantic error left in production data. Seven
+> `cohort_session_registry` rows assert `enrollment_status = 'enrolled'`
+> against a priced `commercial_price_tier` with no money behind them.
+> Contained — it cannot reach the portal, documents or revenue — but it is
+> an unpaid entitlement by any plain reading.
+>
+> **Paid** ⇒ the path needs the M4 boundary and the enrollment should
+> start `pending_payment`. **Unpaid** ⇒ the status value is wrong.
+> Not guessed; see `phase0/BUILD_AND_CREATION_BOUNDARY_AUDIT.md` §7.
+
+Also open from 0.3F: **D-25** — a second M-Pesa STK client, using six env
+vars that do not exist here and pushing a client-supplied amount, was
+found pasted into `performance/route.ts` where it broke the build. It was
+reverted, not adopted. If someone is building that, it must be reconciled
+with the `DARAJA_*` rail before any of it lands.
+
+Phase 0.3E applied **M4**, the payment authorization boundary
+(`phase0/PAYMENT_AUTHORIZATION_BOUNDARY.md`): a settlement is money truth
+and is no longer permission to create an athlete. Phase 0.3F confirmed the
+non-payment doors are properly gated
+(`phase0/BUILD_AND_CREATION_BOUNDARY_AUDIT.md`).
+
+Afterwards, the queue returns to:
 
 > **Install Docker, then apply M1 — atomic athlete-ID issuance (D-20).**
 >
@@ -243,3 +273,6 @@ environment decision.
 | **0.3-M2** | `record_classification` applied (`20260812083829`); 5 synthetic payments classified TEST. | **1 migration** |
 | **0.3C** | Financial consumers migrated to `payment_events_production`; 4 regression guards added (146/146). No migration. | **source only** |
 | **0.3B-M3** | Payment replay integrity applied (`20260812122254`): DUPLICATE vs RECONCILIATION_REQUIRED vs TEST_CLASSIFIED; reconciliation ledger; production-only view; gate reset to `live=false`. Tested 19/19 pre-apply. | **1 migration + 1 gate row** |
+| **0.3D** | Payment-adjacent path audit: 18 paths traced. Found F-1…F-5, three CRITICAL. Established that classification governed revenue and nothing else. 3 guard tests added (149/149). | **none** |
+| **0.3F** | Build repaired (`performance/route.ts` reverted — concurrent corruption, D-25). Non-payment athlete-creation doors audited: `nrhl/ingest` = TRUSTED IMPORT, `google-forms` = **UNCERTAIN (D-26)**, `athlytica_core` trigger = UNUSED (latent grant, unreachable). ID-issuance census closed at 3 sites. 7 new guards, 171/171, 11/11 mutations. | **none** |
+| **0.3E** | **M4 payment authorization boundary applied** (`20260812172530`). One rule — `payment_service_authorization` — consumed by callback, retry-onboarding and NRHL onboarding. Venture-constrained matching; gate moved below matching and its `ON CONFLICT` repaired. F-1…F-5 all fixed. Tested 29/29 pre-apply, 164/164 app, 6/6 mutations caught. | **1 migration + 3 routes + 1 service** |

@@ -39,6 +39,10 @@ import { adminClient, serviceRoleConfigured } from "@/lib/auth/workspace";
 import { divisionSchema, kenyanPhoneSchema } from "@/lib/validation/nrhl-schemas";
 import { REGISTRATION_TIERS } from "@/config/registration-fees";
 import { canonicalName } from "@/lib/services/nrhl-etl";
+import {
+  authorizePaymentForService,
+  mayCreateCustomerValue,
+} from "@/lib/services/payment-authorization";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -118,6 +122,35 @@ export async function POST(request: NextRequest) {
 
   const name = canonicalName(input.athleteName) ?? input.athleteName.trim();
   const db = adminClient();
+
+  // THE AUTHORIZATION BOUNDARY (F-3). Until Phase 0.3E this route took
+  // `mpesaReceipt` on faith: a 4-to-64-character string was all it took to
+  // mint a permanent ATH-00xxx identity and file guardian PII. A receipt
+  // string is an IDENTIFIER, not proof of payment, and the party that
+  // holds the settlement ledger is this engine — not the caller.
+  //
+  // The HMAC proves WHO is asking. It cannot prove that money arrived, and
+  // conflating the two is what made a route named "onboard-PAID-athlete"
+  // have no concept of payment.
+  //
+  // NRHL is passed explicitly: a receipt that settled a Big Ice purchase
+  // cannot onboard an NRHL athlete, no matter who signs the request.
+  const authorization = await authorizePaymentForService(db, input.mpesaReceipt, "NRHL");
+  if (!mayCreateCustomerValue(authorization)) {
+    return NextResponse.json(
+      {
+        success: false,
+        status: authorization.status,
+        error:
+          authorization.status === "RECONCILIATION_REQUIRED"
+            ? "That payment is under reconciliation; onboarding is blocked until it is resolved."
+            : "No authorized NRHL payment corresponds to that receipt.",
+        reason: authorization.reason,
+        athleteCode: null,
+      },
+      { status: authorization.status === "RECONCILIATION_REQUIRED" ? 409 : 402 },
+    );
+  }
 
   const { data: existing, error: lookupError } = await db
     .from("nrhl_athlete")
