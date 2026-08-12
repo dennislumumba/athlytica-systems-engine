@@ -108,7 +108,33 @@ interface PriceDriftRow {
   chargedKes: number | null;
 }
 
+/**
+ * One settled Big Ice registration, with the four post-settlement steps
+ * reported separately. See the pipeline block in
+ * app/api/v1/workspace/dashboard/route.ts for why they can disagree.
+ */
+interface PipelineRow {
+  registrationId: string;
+  accountReference: string | null;
+  athleteName: string | null;
+  parentName: string | null;
+  parentEmail: string | null;
+  receipt: string | null;
+  amountKes: number | null;
+  settledAt: string | null;
+  programmeLabel: string | null;
+  payment: "COMPLETE";
+  athleteId: string | null;
+  athleteStatus: "COMPLETE" | "PENDING";
+  enrollmentStatus: "COMPLETE" | "PENDING";
+  documentStatus: "COMPLETE" | "GENERATED_NOT_SENT" | "PENDING";
+  documentCount: number;
+  documentsSent: number;
+  portalStatus: "READY" | "PENDING";
+}
+
 interface BigIcePayload {
+  pipeline: PipelineRow[];
   packages: PackageRow[];
   priceDrift: PriceDriftRow[];
   publishedPricing: { live: boolean; source: string };
@@ -138,6 +164,18 @@ export function BigIceDashboard() {
   const athletes = payload.athletes ?? [];
   const guardians = payload.guardians ?? [];
   const performance = payload.performance ?? [];
+  const pipeline = payload.pipeline ?? [];
+  // Anything that is not COMPLETE end to end is a family who has paid
+  // and is waiting on us. Surfaced first, because the reason this panel
+  // exists is that these cases were previously only visible as a
+  // console.error in a serverless log.
+  const stalled = pipeline.filter(
+    (p) =>
+      p.athleteStatus !== "COMPLETE" ||
+      p.enrollmentStatus !== "COMPLETE" ||
+      p.documentStatus !== "COMPLETE" ||
+      p.portalStatus !== "READY",
+  );
 
   const athleteName = new Map(
     athletes.map((a) => [a.athlete_id, a.preferred_name ?? a.legal_name ?? a.athlete_id]),
@@ -368,6 +406,108 @@ export function BigIceDashboard() {
 
       {shown.has("clients") && (
         <Panel
+          id="onboarding-pipeline"
+          title="Registration & Onboarding Pipeline"
+          subtitle="Every settled Big Ice payment, and how far its onboarding actually got."
+        >
+          {/* Payment, identity, enrollment, documents and portal are five
+              separate outcomes, and the pipeline runs the last four AFTER
+              the money commits so that a failure there can never charge a
+              family twice. This is where that trade-off gets paid back:
+              the disagreement is visible and recoverable, instead of
+              being a log line. */}
+          <p style={{ margin: "0 0 14px", color: theme.dim, fontSize: 13, lineHeight: 1.7 }}>
+            {stalled.length === 0
+              ? `All ${pipeline.length} settled registration${pipeline.length === 1 ? "" : "s"} completed onboarding.`
+              : `${stalled.length} of ${pipeline.length} settled registration${pipeline.length === 1 ? "" : "s"} did not finish onboarding. ` +
+                "These families have paid. Retry re-runs identity, enrollment and documents — " +
+                "it touches no money and cannot charge anyone again."}
+          </p>
+
+          <DataTable
+            rows={stalled.length > 0 ? stalled : pipeline}
+            rowKey={(p) => p.registrationId}
+            empty="No settled Big Ice registrations yet."
+            columns={[
+              { key: "athlete", header: "Athlete", render: (p) => p.athleteName ?? "—" },
+              { key: "parent", header: "Parent", render: (p) => p.parentName ?? "—" },
+              {
+                key: "programme",
+                header: "Programme",
+                render: (p) => p.programmeLabel ?? "—",
+              },
+              {
+                key: "amount",
+                header: "Paid",
+                align: "right",
+                render: (p) => (p.amountKes === null ? "—" : kes(p.amountKes)),
+              },
+              {
+                key: "payment",
+                header: "Payment",
+                render: () => <Badge tone="good">confirmed</Badge>,
+              },
+              {
+                key: "athleteId",
+                header: "Athlete ID",
+                render: (p) =>
+                  p.athleteId ? (
+                    <span style={{ fontFamily: "ui-monospace, monospace" }}>{p.athleteId}</span>
+                  ) : (
+                    <Badge tone="warn">not issued</Badge>
+                  ),
+              },
+              {
+                key: "enrollment",
+                header: "Enrollment",
+                render: (p) =>
+                  p.enrollmentStatus === "COMPLETE" ? (
+                    <Badge tone="good">created</Badge>
+                  ) : (
+                    <Badge tone="warn">missing</Badge>
+                  ),
+              },
+              {
+                key: "documents",
+                header: "Documents",
+                // Generated-but-unsent is called out on its own: the
+                // family's pack exists and is in their portal, but no
+                // email reached them. That needs a different action from
+                // a pack that was never rendered.
+                render: (p) =>
+                  p.documentStatus === "COMPLETE" ? (
+                    <Badge tone="good">sent ({p.documentsSent})</Badge>
+                  ) : p.documentStatus === "GENERATED_NOT_SENT" ? (
+                    <Badge tone="warn">
+                      generated, {p.documentsSent}/{p.documentCount} sent
+                    </Badge>
+                  ) : (
+                    <Badge tone="warn">not generated</Badge>
+                  ),
+              },
+              {
+                key: "portal",
+                header: "Portal",
+                render: (p) =>
+                  p.portalStatus === "READY" ? (
+                    <Badge tone="good">ready</Badge>
+                  ) : (
+                    <Badge tone="warn">pending</Badge>
+                  ),
+              },
+              { key: "settled", header: "Settled", render: (p) => whenLocal(p.settledAt) },
+              {
+                key: "recover",
+                header: "",
+                render: (p) => <RetryOnboarding row={p} />,
+              },
+            ]}
+          />
+        </Panel>
+      )}
+
+      {shown.has("clients") && (
+        <Panel
           id="clients"
           title="Client Roster"
           subtitle="Enrolled athletes with attendance history and guardian emergency contacts."
@@ -427,6 +567,77 @@ export function BigIceDashboard() {
         </Panel>
       )}
     </div>
+  );
+}
+
+/**
+ * §35 — the button that finishes a stalled onboarding.
+ *
+ * It re-drives identity, enrollment and documents for a registration
+ * that has ALREADY SETTLED. It cannot take a payment, cannot mark
+ * anything paid, and cannot mint a second Athlete ID — every step it
+ * calls is idempotent (see the header of app/api/v1/biz/retry-onboarding).
+ * So it is safe to press twice, which matters, because the person
+ * pressing it is looking at a family who has paid and is waiting.
+ *
+ * The ops token is typed here rather than stored. This runs in a
+ * browser: persisting a credential that can re-send any family's
+ * documents into localStorage would trade a recovery tool for a
+ * standing liability.
+ */
+function RetryOnboarding({ row }: { row: PipelineRow }) {
+  const [state, setState] = useState<
+    { name: "idle" } | { name: "busy" } | { name: "done"; message: string } | { name: "failed"; message: string }
+  >({ name: "idle" });
+
+  async function run() {
+    const token = window.prompt(
+      `Re-run onboarding for ${row.athleteName ?? "this athlete"} (${row.accountReference ?? "—"}).\n\n` +
+        "This re-issues their Athlete ID lookup, enrollment and documents. " +
+        "It does not take a payment.\n\nOps console token:",
+    );
+    if (!token) return;
+    setState({ name: "busy" });
+    try {
+      const res = await fetch("/api/v1/biz/retry-onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Ops-Token": token },
+        body: JSON.stringify({ registrationId: row.registrationId }),
+      });
+      const body = ((await res.json().catch(() => ({}))) ?? {}) as {
+        success?: boolean;
+        error?: string;
+        athleteId?: string | null;
+        delivered?: boolean;
+        deliveryReason?: string | null;
+      };
+      if (!res.ok || !body.success) {
+        setState({ name: "failed", message: body.error ?? `Failed (${res.status}).` });
+        return;
+      }
+      setState({
+        name: "done",
+        message: body.delivered
+          ? `${body.athleteId} — documents sent.`
+          : `${body.athleteId} — documents generated; not sent (${body.deliveryReason ?? "unknown"}).`,
+      });
+    } catch {
+      setState({ name: "failed", message: "Could not reach the recovery endpoint." });
+    }
+  }
+
+  if (state.name === "done") {
+    return <span style={{ fontSize: 12, color: theme.dim }}>✓ {state.message}</span>;
+  }
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <button type="button" onClick={run} disabled={state.name === "busy"} style={buttonStyle}>
+        {state.name === "busy" ? "Retrying…" : "Retry onboarding"}
+      </button>
+      {state.name === "failed" && (
+        <span style={{ fontSize: 12, color: "#ffb3bf" }}>{state.message}</span>
+      )}
+    </span>
   );
 }
 

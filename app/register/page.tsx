@@ -10,12 +10,10 @@
 // at the checkout is how a funnel loses people at the last step.
 //
 // WHAT IS DELIBERATELY NOT HERE:
-//   * Big Ice academy cohorts and the Athlytica institutional licence.
-//     They are a different buyer with a different decision, and mixing a
-//     KES 150,000 campus licence into a parent's radio list is how the
-//     old page ended up defaulting a 7,500 assessment to 27,500. They
-//     live at /register/academy; deep links carrying ?source=bigice,
-//     ?package= or ?tier=enterprise_150k are redirected there.
+//   * Big Ice academy cohorts. Big Ice is a separate business with a
+//     separate customer journey; its registration lives at
+//     /register/bigice and sells Big Ice packages only. Deep links
+//     carrying ?source=bigice or ?package= are redirected there.
 //
 // ORDER OF THE PAGE (the sequence a parent actually thinks in):
 //   programme → what's included → price → athlete → schedule → pay
@@ -205,17 +203,26 @@ function RegistrationPage() {
   const router = useRouter();
   const params = useSearchParams();
 
-  // Anything that is not one of the three athlete programmes belongs to
-  // the other funnel. Redirect rather than 404 — these links are printed
-  // on bigice.co.ke and in the schools section of nairobihockey.com.
+  // Big Ice traffic belongs to the Big Ice funnel. Redirect rather than
+  // 404 — these links are printed on bigice.co.ke.
+  //
+  // ?tier= NAMES AN NRHL PROGRAMME AND MUST WIN. bigice.co.ke's hockey
+  // CTAs used to arrive as `?tier=baseline_7500&source=bigice`, and
+  // `source=bigice` alone diverted them: a parent clicking "NRHL ·
+  // Athlete Performance Assessment" on the Big Ice site was carried into
+  // the academy checkout and never reached NRHL at all. A source only
+  // names the page someone came FROM; a tier names what they are buying.
+  // The Big Ice site now links here with no source at all
+  // (config/venture-links.ts), and this guard makes the old links work
+  // too rather than relying on that deploy landing first.
   const urlTier = params.get("tier");
-  const belongsToAcademy =
-    params.get("source") === "bigice" ||
-    params.get("package") !== null ||
-    urlTier === "enterprise_150k";
+  const namesAnNrhlProgramme = PROGRAMMES.some((p) => p.id === urlTier);
+  const belongsToBigIce =
+    !namesAnNrhlProgramme &&
+    (params.get("source") === "bigice" || params.get("package") !== null);
   useEffect(() => {
-    if (belongsToAcademy) router.replace(`/register/academy?${params.toString()}`);
-  }, [belongsToAcademy, params, router]);
+    if (belongsToBigIce) router.replace(`/register/bigice?${params.toString()}`);
+  }, [belongsToBigIce, params, router]);
 
   // "auto" = nobody has chosen yet, so the ?tier= in the link decides.
   // This CANNOT be a useState initializer: useSearchParams is empty on the

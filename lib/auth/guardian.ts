@@ -29,6 +29,7 @@
 // =====================================================================
 
 import { adminClient, bearerToken } from "@/lib/auth/workspace";
+import { likeEscape } from "@/lib/auth/like-escape";
 
 export interface GuardianAthlete {
   biifCode: string;
@@ -47,6 +48,7 @@ export interface Guardian {
   guardianName: string | null;
   athletes: GuardianAthlete[];
 }
+
 
 /**
  * Verifies the bearer token, then loads exactly the athletes this
@@ -72,6 +74,7 @@ export async function resolveGuardian(request: Request): Promise<Guardian | null
   if (!user?.email) return null;
 
   const email = user.email.toLowerCase();
+  const emailPattern = likeEscape(email);
 
   // WITHDRAWN athletes are excluded: a closed record is not a portal
   // surface. DORMANT is included — a parent between programmes must
@@ -82,7 +85,7 @@ export async function resolveGuardian(request: Request): Promise<Guardian | null
     .select(
       "biif_code, full_name, date_of_birth, primary_discipline, skating_level, status, portal_activated_at, passport_athlete_id, guardian_name",
     )
-    .ilike("guardian_email", email)
+    .ilike("guardian_email", emailPattern)
     .neq("status", "WITHDRAWN")
     .order("created_at", { ascending: true });
 

@@ -24,16 +24,13 @@ const LIVE_MARKUP = `
     <option value="quarter">3-Month Development — KSh 95,000</option>
     <option value="semi-annual">6-Month Development — KSh 180,000</option>
     <option value="annual">12-Month Development — KSh 350,000</option>
-    <option value="combine-metric">NRHL · Athlete Performance Assessment — KES 7,500</option>
-    <option value="combine-clinic">NRHL · Performance Hockey Program — KES 27,500</option>
-    <option value="combine-accel">NRHL · Elite Individual Development — KES 45,000</option>
     <option value="family-estate">Family &amp; Estate Private Cohort — Custom Quote</option>
     <option value="unsure">Not sure yet</option>
   </select>`;
 
 test("parses every cohort off the live markup", () => {
   const tiers = parseBigIceTiers(LIVE_MARKUP);
-  assert.equal(tiers.length, 8);
+  assert.equal(tiers.length, 5);
   assert.deepEqual(tiers[0], {
     id: "beginner",
     label: "Beginner Skating Programme",
@@ -87,16 +84,20 @@ test("renaming a cohort on the site does not break drift matching", () => {
   // joins on id precisely so a marketing rewrite cannot silently stop
   // reconciling prices — this is the regression that would prove it did.
   const ids = FALLBACK_TIERS.map((t) => t.id).sort();
-  assert.deepEqual(ids, [
-    "annual",
-    "beginner",
-    "combine-accel",
-    "combine-clinic",
-    "combine-metric",
-    "family-estate",
-    "quarter",
-    "semi-annual",
-  ]);
+  assert.deepEqual(ids, ["annual", "beginner", "family-estate", "quarter", "semi-annual"]);
+});
+
+test("the sheet carries no NRHL product", () => {
+  // The three `combine-*` ids were NRHL programmes sold from Big Ice's own
+  // enquiry form. They are a different organisation's catalogue and were
+  // removed from the site on 2026-08-12; NRHL is now an upsell that links
+  // to nairobihockey.com/register. This asserts they do not creep back —
+  // re-adding one to the site without noticing would put an NRHL price
+  // back into a Big Ice price sheet, and nothing else would complain.
+  for (const tier of FALLBACK_TIERS) {
+    assert.ok(!tier.id.startsWith("combine-"), `${tier.id} is an NRHL tier`);
+    assert.ok(!/nrhl/i.test(tier.label), `${tier.label} names NRHL`);
+  }
 });
 
 test("matching prices and unmapped tiers produce no drift", () => {

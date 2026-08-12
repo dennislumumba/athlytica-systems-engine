@@ -150,7 +150,17 @@ async function nrhlData(db: Supabase) {
 // BIG ICE — academy package billing, rink schedule, development metrics
 // ---------------------------------------------------------------------
 async function bigIceData(db: Supabase) {
-  const [packages, enrolments, registrations, athletes, guardians, perf] = await Promise.all([
+  const [
+    packages,
+    enrolments,
+    registrations,
+    athletes,
+    guardians,
+    perf,
+    biifAthletes,
+    biifEnrollments,
+    biifDocuments,
+  ] = await Promise.all([
     safeRows(() =>
       db
         .from("commercial_price_tier")
@@ -172,7 +182,7 @@ async function bigIceData(db: Supabase) {
       db
         .from("registrations")
         .select(
-          "id, account_reference, athlete_name, full_name, email, tier, payment_status, amount_expected_kes, settled_at, created_at",
+          "id, account_reference, athlete_name, full_name, email, tier, payment_status, amount_expected_kes, settled_receipt, settled_at, created_at",
         )
         .eq("venture_context", "BIG_ICE")
         .order("created_at", { ascending: false })
@@ -203,6 +213,29 @@ async function bigIceData(db: Supabase) {
         .neq("tenant_id", TTA_TENANT_ID)
         .order("created_at", { ascending: false })
         .limit(50),
+    ),
+    // The three tables the post-settlement pipeline writes. Fetched
+    // separately rather than joined because they degrade independently:
+    // the whole point of the recovery panel is to be readable when one
+    // of these steps is the thing that failed.
+    safeRows(() =>
+      db
+        .from("bigice_athlete")
+        .select("biif_code, full_name, guardian_email, portal_activated_at, created_at")
+        .order("created_at", { ascending: false })
+        .limit(500),
+    ),
+    safeRows(() =>
+      db
+        .from("bigice_enrollment")
+        .select("enrollment_id, biif_code, programme_label, mpesa_receipt, status, amount_kes")
+        .limit(500),
+    ),
+    safeRows(() =>
+      db
+        .from("bigice_document")
+        .select("document_id, biif_code, slug, mpesa_receipt, delivery_status")
+        .limit(2000),
     ),
   ]);
 
@@ -241,11 +274,87 @@ async function bigIceData(db: Supabase) {
     );
   }
 
+  // -------------------------------------------------------------------
+  // ONBOARDING PIPELINE — §35/§36/§37, one row per settled registration.
+  //
+  // The payment path deliberately runs identity, enrollment and document
+  // delivery AFTER settlement and outside its transaction, so that a
+  // failure there cannot un-settle money or charge a family twice. The
+  // cost of that correct decision is that the four steps can disagree,
+  // and until now the only place that disagreement appeared was a
+  // console.error in a serverless log nobody reads. A parent whose
+  // payment succeeded and whose welcome pack never generated was
+  // invisible.
+  //
+  // `paid = true` is not a workflow state. This is the workflow state.
+  // -------------------------------------------------------------------
+  const enrolmentByReceipt = new Map(
+    biifEnrollments
+      .filter((e) => typeof e.mpesa_receipt === "string")
+      .map((e) => [String(e.mpesa_receipt), e]),
+  );
+  const athleteByCode = new Map(biifAthletes.map((a) => [String(a.biif_code), a]));
+  const docsByReceipt = new Map<string, { slug: string; delivery_status: string }[]>();
+  for (const d of biifDocuments) {
+    const receipt = typeof d.mpesa_receipt === "string" ? d.mpesa_receipt : null;
+    if (!receipt) continue;
+    const list = docsByReceipt.get(receipt) ?? [];
+    list.push({ slug: String(d.slug), delivery_status: String(d.delivery_status) });
+    docsByReceipt.set(receipt, list);
+  }
+
+  const pipeline = registrations
+    .filter((r) => r.payment_status === "PAYMENT_SETTLED")
+    .map((r) => {
+      const receipt = typeof r.settled_receipt === "string" ? r.settled_receipt : null;
+      const enrolment = receipt ? enrolmentByReceipt.get(receipt) : undefined;
+      const biifCode = enrolment ? String(enrolment.biif_code) : null;
+      const athlete = biifCode ? athleteByCode.get(biifCode) : undefined;
+      const docs = receipt ? (docsByReceipt.get(receipt) ?? []) : [];
+      const sent = docs.filter((d) => d.delivery_status === "SENT").length;
+
+      return {
+        registrationId: String(r.id),
+        accountReference: r.account_reference === null ? null : String(r.account_reference),
+        athleteName: r.athlete_name === null ? null : String(r.athlete_name),
+        parentName: r.full_name === null ? null : String(r.full_name),
+        parentEmail: r.email === null ? null : String(r.email),
+        receipt,
+        amountKes: r.amount_expected_kes === null ? null : Number(r.amount_expected_kes),
+        settledAt: r.settled_at === null ? null : String(r.settled_at),
+        programmeLabel: enrolment ? String(enrolment.programme_label) : null,
+
+        // Four independent verdicts. Never collapsed into one "ok"
+        // boolean — an administrator needs to know WHICH step to retry.
+        payment: "COMPLETE" as const,
+        athleteId: biifCode,
+        athleteStatus: biifCode ? ("COMPLETE" as const) : ("PENDING" as const),
+        enrollmentStatus: enrolment ? ("COMPLETE" as const) : ("PENDING" as const),
+        documentStatus:
+          docs.length === 0
+            ? ("PENDING" as const)
+            : sent === docs.length
+              ? ("COMPLETE" as const)
+              : ("GENERATED_NOT_SENT" as const),
+        documentCount: docs.length,
+        documentsSent: sent,
+        // The portal is reachable the moment the athlete row names the
+        // guardian's address — that IS the link (lib/auth/guardian.ts).
+        // A missing address means the family cannot sign in, which is a
+        // distinct failure from a missing athlete.
+        portalStatus:
+          athlete && typeof athlete.guardian_email === "string" && athlete.guardian_email.trim()
+            ? ("READY" as const)
+            : ("PENDING" as const),
+      };
+    });
+
   return {
     packages,
     publishedPricing: { tiers: sheet.tiers, live: sheet.live, source: BIG_ICE_SOURCE_URL },
     priceDrift: findPriceDrift(sheet.tiers, charged),
     schedule: enrolments,
+    pipeline,
     balances: [...balances.values()].map((b) => ({
       ...b,
       athleteName: nameById.get(b.athleteId) ?? b.athleteId,

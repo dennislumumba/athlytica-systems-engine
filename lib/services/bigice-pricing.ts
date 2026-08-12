@@ -58,15 +58,28 @@ const TIMEOUT_MS = 1_500;
  * `beginner` cohort was added as the entry rung at KSh 16,500. Anything
  * that displays `label` shows the new names; anything that matches on
  * `id` is unaffected.
+ *
+ * 2026-08-12: the three `combine-*` options were REMOVED from the site.
+ * They were NRHL products — Assessment 7,500, Performance 27,500, Elite
+ * 45,000 — listed in Big Ice's own enquiry form, which merged two
+ * organisations' catalogues at the point of purchase. NRHL is now an
+ * upsell on bigice.co.ke that links to nairobihockey.com/register, and
+ * this sheet is Big Ice programmes only.
+ *
+ * That drops the required option count from 8 to 5, and the count is
+ * load-bearing: `fetchBigIcePricing` treats anything shorter than this
+ * array as a partial scrape and falls back. Removing an option from the
+ * site WITHOUT editing here would have been harmless (5 >= 5 fails, so
+ * it falls back silently and forever); removing it here without editing
+ * the site would too. `tests/bigice-pricing.test.mts` asserts this array
+ * equals what the live markup parses to, which is what keeps the two
+ * honest.
  */
 export const FALLBACK_TIERS: readonly BigIceTier[] = [
   { id: "beginner", label: "Beginner Skating Programme", amountKes: 16_500 },
   { id: "quarter", label: "3-Month Development", amountKes: 95_000 },
   { id: "semi-annual", label: "6-Month Development", amountKes: 180_000 },
   { id: "annual", label: "12-Month Development", amountKes: 350_000 },
-  { id: "combine-metric", label: "NRHL · Athlete Performance Assessment", amountKes: 7_500 },
-  { id: "combine-clinic", label: "NRHL · Performance Hockey Program", amountKes: 27_500 },
-  { id: "combine-accel", label: "NRHL · Elite Individual Development", amountKes: 45_000 },
   { id: "family-estate", label: "Family & Estate Private Cohort", amountKes: null },
 ];
 

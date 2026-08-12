@@ -23,6 +23,23 @@ import { adminClient, serviceRoleConfigured } from "@/lib/auth/workspace";
 export const runtime = "nodejs";
 export const revalidate = 300;
 
+interface CatalogRow {
+  tier_id: string;
+  tier_name: string | null;
+  price_amount: number | string | null;
+  currency: string | null;
+  description: string | null;
+  best_for: string | null;
+  age_range: string | null;
+  duration_label: string | null;
+  session_format: string | null;
+  sessions_included: string | null;
+  location: string | null;
+  inclusions: string[] | null;
+  display_order: number | null;
+  is_featured: boolean | null;
+}
+
 export async function GET() {
   if (!serviceRoleConfigured()) {
     return NextResponse.json(
@@ -37,10 +54,24 @@ export async function GET() {
 
   const { data, error } = await adminClient()
     .from("commercial_price_tier")
-    .select("tier_id, tier_name, price_amount, currency")
+    .select(
+      "tier_id, tier_name, price_amount, currency, description, best_for, age_range, " +
+        "duration_label, session_format, sessions_included, location, inclusions, " +
+        "display_order, is_featured",
+    )
     .eq("tier_group", "academy")
     .eq("is_active", true)
-    .order("price_amount", { ascending: false });
+    // Cheapest-first, by an admin-set order. The old ordering was price
+    // DESCENDING, which put the KES 350,000 cohort at index 0 — and
+    // anything that fell back to `choices[0]` landed a parent there.
+    // Entry rung first is also the order a parent reads a price list in.
+    .order("display_order", { ascending: true })
+    .order("price_amount", { ascending: true })
+    // The projection is built by concatenation for readability, which
+    // defeats supabase-js's literal-string row inference — it falls back
+    // to GenericStringError. The shape is declared here instead; it is
+    // the same hand-listed set as the select above.
+    .returns<CatalogRow[]>();
 
   if (error) {
     // The generic client message stays — a public endpoint does not
@@ -59,12 +90,31 @@ export async function GET() {
     );
   }
 
+  // Absent fields come back null rather than as a plausible default:
+  // bigice.co.ke still marks the age range and the venue list [VERIFY],
+  // and the development programmes genuinely have no fixed session
+  // count (frequency is set with the coach). The card omits those rows.
+  // A filled-in guess would read as a commitment.
+  const text = (v: unknown): string | null =>
+    typeof v === "string" && v.trim() ? v.trim() : null;
+
   const packages = (data ?? [])
     .map((row) => ({
       priceTierId: String(row.tier_id),
       label: typeof row.tier_name === "string" ? row.tier_name : "Academy package",
       amountKes: Number(row.price_amount),
       currency: typeof row.currency === "string" ? row.currency : "KES",
+      description: text(row.description),
+      bestFor: text(row.best_for),
+      ageRange: text(row.age_range),
+      durationLabel: text(row.duration_label),
+      sessionFormat: text(row.session_format),
+      sessionsIncluded: text(row.sessions_included),
+      location: text(row.location),
+      inclusions: Array.isArray(row.inclusions)
+        ? row.inclusions.filter((i): i is string => typeof i === "string" && i.trim().length > 0)
+        : [],
+      featured: row.is_featured === true,
     }))
     // A zero or unparseable price is a data fault, not a free cohort —
     // offering it would let someone check out at nothing.

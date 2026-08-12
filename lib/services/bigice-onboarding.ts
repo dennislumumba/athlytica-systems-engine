@@ -227,6 +227,27 @@ export async function onboardBigIceAthlete(
     const { priceTierId, tierId } = priceSource(row.tier);
     const amount = row.amount_expected_kes === null ? null : Number(row.amount_expected_kes);
 
+    // IS THIS FAMILY RETURNING? Asked of their enrollment history, not of
+    // whether THIS RUN happened to mint the code.
+    //
+    // `returning: !minted` was very nearly right and wrong in exactly the
+    // case that matters. When onboarding minted an Athlete ID and then
+    // failed at document delivery, the admin retry (§35) re-entered here,
+    // matched the athlete it had just created, and therefore reported
+    // minted = false — so a first-time family's recovery pack was headed
+    // "Welcome Back to Big Ice" and told them their new programme had
+    // been "added to their existing profile". Their first ever contact
+    // from Big Ice would have implied a history they did not have.
+    //
+    // Enrollments other than this receipt are the honest question, and it
+    // answers correctly on the first run and on every retry.
+    const { count: priorEnrollments } = await db
+      .from("bigice_enrollment")
+      .select("enrollment_id", { count: "exact", head: true })
+      .eq("biif_code", biifCode)
+      .neq("mpesa_receipt", receipt);
+    const returning = (priorEnrollments ?? 0) > 0;
+
     const { error: enrollError } = await db.from("bigice_enrollment").upsert(
       {
         biif_code: biifCode,
@@ -252,7 +273,7 @@ export async function onboardBigIceAthlete(
       };
     }
 
-    return { onboarded: true, biifCode, minted, returning: !minted };
+    return { onboarded: true, biifCode, minted, returning };
   } catch (err) {
     return {
       onboarded: false,

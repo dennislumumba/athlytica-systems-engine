@@ -15,6 +15,21 @@
 // on reference equality first (covers manual Paybill payments keyed to
 // the ATH code) and msisdn_hash second (covers STK callbacks, which do
 // not echo AccountReference).
+//
+// THE IDEMPOTENCY KEY IS THE CHECKOUT INTENT, NOT THE PHONE.
+// This route used to resolve sessions by msisdn_hash alone, against a
+// UNIQUE index on that column. One phone number therefore held exactly
+// one registration for all time, and two live defects fell out of it:
+//   * A parent registering a SECOND CHILD reused the first child's open
+//     row and overwrote athlete_name — the first registration was
+//     destroyed before it was ever paid for.
+//   * After one settlement the same phone got 409 ALREADY_SETTLED, so a
+//     family with two children could not register the second and no
+//     family could renew.
+// The key is now (household, child, programme) among UNPAID rows, which
+// is what "the same checkout" actually means: a refresh or a double
+// click collapses onto one row, a different child or programme opens a
+// new one. See 20260812090000_bigice_catalog_and_sibling_registrations.
 // =====================================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -24,6 +39,7 @@ import { MPESA_PAYBILL } from "@/config/payment-rail";
 import { REGISTRATION_TIERS, REGISTRATION_TIER_IDS } from "@/config/registration-fees";
 import { getMsisdnHashKey, hmacSha256Hex, normalizeKenyanMsisdn } from "@/utils/msisdn";
 import { initiateStkPush } from "@/utils/mpesaDaraja";
+import { normaliseName } from "@/lib/services/bigice-athlete";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,7 +95,27 @@ type SessionRow = {
   payment_status: string;
   stk_pushed_at: string | null;
   account_reference: string;
+  athlete_name: string | null;
+  tier: string | null;
+  settled_at: string | null;
 };
+
+const SESSION_COLUMNS =
+  "id, payment_status, stk_pushed_at, account_reference, athlete_name, tier, settled_at";
+
+/**
+ * A settlement this recent, for this exact child and programme, is a
+ * parent who has already paid and hit the button again — not a renewal.
+ * Returning 409 with the registration id lets the checkout jump to its
+ * own confirmation screen instead of showing an error to someone whose
+ * money already left their phone. Beyond the window it IS a renewal, and
+ * a renewal must be allowed to open a new session.
+ */
+const RECENT_SETTLEMENT_MS = 24 * 60 * 60 * 1000;
+
+/** Same child? Mirrors the SQL normalisation in registrations_open_checkout_key. */
+const sameAthlete = (a: string | null, b: string): boolean =>
+  normaliseName(a ?? "") === normaliseName(b);
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -190,29 +226,49 @@ export async function POST(request: NextRequest) {
   const msisdn = normalizeKenyanMsisdn(input.phoneNumber)!; // refined above
   const msisdnHash = await hmacSha256Hex(hashKey, msisdn);
 
-  // Idempotent session resolution on the phone-identity index.
-  const { data: existing, error: existingErr } = await supabase
+  // Idempotent session resolution. Every row for this household is
+  // fetched (a family holds a handful, not a page) and the match is made
+  // here rather than in the filter, because "the same child" needs the
+  // same normalisation the unique index uses and PostgREST cannot
+  // express it. See SESSION_COLUMNS / sameAthlete above.
+  const { data: household, error: existingErr } = await supabase
     .from("registrations")
-    .select("id, payment_status, stk_pushed_at, account_reference")
+    .select(SESSION_COLUMNS)
     .eq("msisdn_hash", msisdnHash)
-    .maybeSingle<SessionRow>();
+    .order("created_at", { ascending: false })
+    .returns<SessionRow[]>();
   if (existingErr) {
     return NextResponse.json(
       { success: false, status: "SERVER_ERROR", error: "Session lookup failed." },
       { status: 500 },
     );
   }
-  if (existing && existing.payment_status === "PAYMENT_SETTLED") {
+
+  const forThisCheckout = (household ?? []).filter(
+    (r) => r.tier === tierId && sameAthlete(r.athlete_name, input.athleteName),
+  );
+
+  // Already paid, moments ago, for this exact thing.
+  const justSettled = forThisCheckout.find(
+    (r) =>
+      r.payment_status === "PAYMENT_SETTLED" &&
+      r.settled_at !== null &&
+      Date.now() - Date.parse(r.settled_at) < RECENT_SETTLEMENT_MS,
+  );
+  if (justSettled) {
     return NextResponse.json(
       {
         success: false,
         status: "ALREADY_SETTLED",
-        error: "This phone number has a settled registration.",
-        registrationId: existing.id,
+        error: "This registration has already been paid for.",
+        registrationId: justSettled.id,
+        accountReference: justSettled.account_reference,
       },
       { status: 409 },
     );
   }
+
+  const existing = forThisCheckout.find((r) => r.payment_status !== "PAYMENT_SETTLED") ?? null;
 
   let sessionId: string;
   let accountReference: string;
@@ -272,13 +328,23 @@ export async function POST(request: NextRequest) {
           { status: 503 },
         );
       }
-      // 23505 exhausted: unique race on msisdn_hash (double-submit) — reuse.
-      const { data: raced } = await supabase
+      // 23505 exhausted: a concurrent double-submit won the race on
+      // registrations_open_checkout_key. Re-read and reuse its row —
+      // which is the whole point of the index. The same
+      // household/child/programme filter applies, because the household
+      // may legitimately hold other open registrations for siblings.
+      const { data: racedRows } = await supabase
         .from("registrations")
-        .select("id, payment_status, stk_pushed_at, account_reference")
+        .select(SESSION_COLUMNS)
         .eq("msisdn_hash", msisdnHash)
-        .maybeSingle<SessionRow>();
-      if (raced && raced.payment_status !== "PAYMENT_SETTLED") {
+        .returns<SessionRow[]>();
+      const raced = (racedRows ?? []).find(
+        (r) =>
+          r.payment_status !== "PAYMENT_SETTLED" &&
+          r.tier === tierId &&
+          sameAthlete(r.athlete_name, input.athleteName),
+      );
+      if (raced) {
         sessionId = raced.id;
         accountReference = raced.account_reference;
       } else {
@@ -330,6 +396,12 @@ export async function POST(request: NextRequest) {
       accountReference: accountReference!,
       amountKes,
       tier: tierId,
+      // The server's own name for what it just priced. The checkout
+      // renders THIS on the confirmation, not the label it happened to
+      // have in state, so the programme a parent sees after paying is
+      // the programme the money was derived from.
+      programmeLabel: tier.label,
+      venture: tier.venture,
       stkPush: stk.dispatched
         ? { dispatched: true }
         : { dispatched: false, fallback: "MANUAL_PAYBILL", reason: stk.reason ?? "unknown" },
