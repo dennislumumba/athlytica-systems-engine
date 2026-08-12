@@ -8,29 +8,69 @@ Commands: `pnpm dev`, `pnpm build`, `pnpm typecheck`, `pnpm test`.
 
 ---
 
-## DEPLOYMENT — COMMIT TO `main`, NEVER TO `master`
+## DEPLOYMENT — A PUSH IS NOT A DEPLOY
 
-**Production deploys from `main`.** It is the repository default branch
-(`origin/HEAD → main`) and therefore the Vercel project's production
-branch. Nothing else publishes.
+**GitHub's default branch and Vercel's Production Branch are independent
+settings.** One does not imply the other, and neither can be inferred
+from the other. Production deployment status is a fact about Vercel
+deployment metadata — read it, never derive it.
 
-`master` existed as a parallel working branch and silently broke the
-deploy: between 2026-07 and 2026-08-11 four commits landed on `master`
-and none reached production, so `nairobihockey.com/register` served an
-eight-week-old checkout — old tier names, and `/api/v1/public/*`
-returning 404 because those routes did not exist in the deployed build.
-Nothing failed loudly; the branch simply was not the one being deployed.
-It was fixed by fast-forwarding `main` to `master` (574e672).
+This file used to say the opposite ("`main` is the repository default
+branch **and therefore** the Vercel project's production branch"). That
+inference was false for the entire life of the project. Verified
+2026-08-12 (Phase 0.3K) against the Vercel API: `productionBranch` was
+`master` while every commit since 2026-08-11 was pushed to `main`, so
+**every push to `main` built a Preview and nothing else**. In all 81
+deployments on record, not one successful production deployment came
+from Git — the 12 that Git did produce were all from `master` and all
+failed, and every production URL the business ever served came from a
+manual `vercel --prod` upload. It was fixed by setting
+`productionBranch` to `main`; see `docs/phase0/DEPLOYMENT_CHAIN_AUDIT.md`.
 
-So:
+The earlier `master` story in this file was a misdiagnosis of the same
+fault. `master` was not "the branch that does not publish" — it was the
+production branch, and its builds were failing on missing
+`NEXT_PUBLIC_SUPABASE_*` production env vars (provisioned later, on
+2026-08-11). Both branches failed to reach production, for two different
+reasons, and fast-forwarding `main` to `master` (574e672) fixed neither.
 
-- Commit and push to **`main`**.
-- If a push does not change production within ~3 minutes, check the
-  branch before debugging anything else.
-- Verify a deploy against a route the change actually touches — a 200 on
-  `/register` proves nothing, because that page has existed for months.
-  `curl -s https://athlytica-systems-engine.vercel.app/api/v1/public/nrhl`
-  is a better canary: it 404s on any build older than 2026-07-28.
+### The deployment chain
+
+```
+commit → push to main → Vercel Git integration → Production deployment
+       → production alias → HTTP probe → known commit
+```
+
+Every arrow is a separate claim. **A commit is not "deployed" until all
+four of these hold:**
+
+1. Vercel reports a deployment with `target: production`,
+2. that deployment has `source: git` and `meta.githubCommitSha` equal to
+   the expected commit,
+3. the production alias points at that deployment,
+4. a route the change actually touches returns the new behaviour.
+
+`pnpm verify:production` checks 1–3 and prints the alias's live answer
+for the current canary route. It exits non-zero on any mismatch.
+
+### Rules
+
+- Commit and push to **`main`**. Do not commit to `master`; it is stale
+  and no longer wired to anything.
+- **Never use `vercel --prod` as the deployment mechanism.** It uploads
+  the *working tree*, not a commit — on 2026-08-12 that shipped a
+  half-finished edit to `app/api/v1/performance/route.ts` straight at
+  production and failed the build there. A CLI production deployment
+  also stamps a commit SHA it did not build from, so its metadata lies.
+  Use it only to recover when Git deployment is itself broken, and say
+  so in the commit record when you do.
+- Verify against a route the change actually touches. A 200 on
+  `/register` proves nothing — that page has existed for months. Pick a
+  discriminator whose *old* answer differs from its *new* one:
+  `GET /api/v1/onboarding/google-forms` returns **405** on any build
+  before 4cf7787 and **410** on any build after it.
+- If a push has not produced a Production deployment within ~3 minutes,
+  read `productionBranch` before debugging anything else.
 
 The static sites are separate projects on their own repos and deploy
 from **their** `main` (`NRHL-Site`, `big-ice-site`). `nairobihockey.com`
