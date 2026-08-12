@@ -1,0 +1,1394 @@
+{
+  "$schema_version": "2.0.0-phase0-proposal",
+  "generated_at": "2026-08-12",
+  "supersedes": "docs/athlytica_metric_registry.json (written before protocol documents were read)",
+  "finalized": false,
+  "finalization_blocked_by": [
+    "D-09",
+    "D-10",
+    "D-11",
+    "D-12",
+    "D-14"
+  ],
+  "status_vocabulary": {
+    "VERIFIED": "Definition, unit, method and direction attested by a protocol document, or reproduced deterministically from data.",
+    "INFERRED": "Reasonable reading of evidence, not attested. Review before any parent-facing use.",
+    "UNKNOWN": "Exists in data but definition, derivation or direction cannot be established.",
+    "DEPRECATED": "Superseded, redundant or structurally unsound. Retained for provenance."
+  },
+  "promotion_rule": "UNKNOWN is never silently promoted to VERIFIED. Promotion requires a named source document and a dated entry in DECISION_REGISTER.md.",
+  "capture_modes": {
+    "TIMED": "Stopwatch or timing gate.",
+    "COUNT": "Tally producing a rate. Numerator and denominator both stored.",
+    "OBSERVE": "Subjective ordinal assigned by a coach."
+  },
+  "protocol_sources": [
+    {
+      "id": "RIVERSIDE-2026-04-02",
+      "file": "Desktop/NRHL/Baseline Capture Sheets/Baseline capture sheet- Riverside.pdf",
+      "date": "2026-04-02",
+      "surface": "Concrete/Roller",
+      "grade": "primary",
+      "note": "Blank template. Defines 12 metrics + the 4-category per-session capture contract + discipline gating. Contains NO captured values."
+    },
+    {
+      "id": "PERFID-MBATIA-FINAL",
+      "file": "Desktop/NRHL/Individual athlete onboarding/Mbatia samples/Benson_Mbatia_Performance_ID_FINAL.pdf",
+      "grade": "primary",
+      "note": "Real measured values for ATH-043 (matches CSV corpus). Establishes the 1-10 band + text label pattern and the bilateral asymmetry threshold."
+    },
+    {
+      "id": "PARENT-AUDIT-2026",
+      "file": "Desktop/NRHL/NRHL_Parent_Audit_PDFs_2026_A4_Final/",
+      "grade": "primary",
+      "note": "11 per-athlete audit PDFs with measured values. Derived from the 'Roller Hockey Parent Report' tab, which is absent from the local CSV corpus."
+    },
+    {
+      "id": "DOSSIER-v2",
+      "file": "Desktop/NRHL/NRHL_CONTEXT_DOSSIER.md",
+      "grade": "secondary",
+      "note": "Prior extraction, evidence-graded. Where it disagrees with raw CSVs, the CSV wins. Its point formula was independently reproduced (31/31) and matches its own 94/94 reconciliation and NRHL_POINT_FORMULA in code."
+    }
+  ],
+  "per_session_capture_contract": {
+    "source": "RIVERSIDE-2026-04-02, block 4, verbatim",
+    "categories": {
+      "technical_compliance": [
+        "TC_LOW_COG",
+        "TC_FULL_EXTENSION_PUSH",
+        "TC_PERFECT_RECOVERY"
+      ],
+      "performance": [
+        "PF_RAW_DASH_10M_S"
+      ],
+      "effort_engagement": [
+        "EE_TECHNICAL_BREAKS",
+        "EE_WORK_RATE",
+        "EE_RPE"
+      ],
+      "outcome": [
+        "OU_PASSED_DETERMINANT_DRILL"
+      ]
+    },
+    "correction_note": "EE_TECHNICAL_BREAKS was classified as technical_skill in the v1 draft. The protocol places it under Effort/Engagement. Reclassified to dimension 'engagement'. It must not be aggregated into a technical composite."
+  },
+  "discipline_gating": {
+    "source": "RIVERSIDE-2026-04-02, block 3 N/A matrix",
+    "hockey": [
+      "HK_STICKHANDLING_WEAVE_S",
+      "HK_TARGET_ACCURACY_X10"
+    ],
+    "junior": [
+      "HK_STICKHANDLING_WEAVE_S",
+      "HK_TARGET_ACCURACY_X10"
+    ],
+    "figure": [
+      "FS_SPIRAL_GLIDE_HOLD_S",
+      "FS_ONE_FOOT_SPIN_ROTATIONS"
+    ]
+  },
+  "metrics": [
+    {
+      "metric_id": "GA_SPRINT_20M_S",
+      "name": "sprint_20m",
+      "display_name": "20m Sprint",
+      "definition": "Time to cover 20m from a standing start, off-skate, on a course marked with a 25m tape.",
+      "unit": "s",
+      "measurement_method": "Marked 25m tape, standing start, measured before skates are put on.",
+      "capture_mode": "TIMED",
+      "dimension": "speed",
+      "category": "general_athleticism",
+      "higher_is_better": false,
+      "lower_is_better": true,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 1",
+      "source_rationale_verbatim": "Raw acceleration",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "min": 2.0,
+        "max": 12.0,
+        "note": "Reject values outside plausible child range; quarantine rather than clamp."
+      },
+      "minimum_sample": 1,
+      "sample_available": 0,
+      "confidence_method": "single_trial",
+      "applicable_disciplines": [
+        "*"
+      ],
+      "status": "VERIFIED",
+      "notes": "Protocol VERIFIED. Zero captured values in the CSV corpus — the Riverside sheet is blank. Measured values may exist in the Parent Audit PDFs (see PERFID-MBATIA-FINAL: 20m = 3.84s). Cannot drive a composite until sample > 0."
+    },
+    {
+      "metric_id": "GA_BROAD_JUMP_CM",
+      "name": "broad_jump",
+      "display_name": "Broad Jump",
+      "definition": "Horizontal distance of a standing two-foot broad jump.",
+      "unit": "cm",
+      "measurement_method": "Standing broad jump, distance measured from take-off line to nearest heel.",
+      "capture_mode": "TIMED",
+      "dimension": "explosive_power",
+      "category": "general_athleticism",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 1",
+      "source_rationale_verbatim": "Explosive leg power",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "min": 30,
+        "max": 300
+      },
+      "minimum_sample": 1,
+      "sample_available": 0,
+      "confidence_method": "best_of_n_unspecified",
+      "applicable_disciplines": [
+        "*"
+      ],
+      "status": "VERIFIED",
+      "notes": "Number of attempts is NOT specified by the protocol. PERFID-MBATIA-FINAL records Left 122cm / Right 101cm separately, implying a SINGLE-LEG variant also exists with a bilateral asymmetry delta. See GA_LATERAL_ASYMMETRY_CM."
+    },
+    {
+      "metric_id": "GA_LATERAL_ASYMMETRY_CM",
+      "name": "lateral_asymmetry",
+      "display_name": "Lateral Asymmetry",
+      "definition": "Absolute difference between left-leg and right-leg single-leg jump distance.",
+      "unit": "cm",
+      "measurement_method": "Single-leg broad jump each side; delta = |left - right|.",
+      "capture_mode": "TIMED",
+      "dimension": "movement_quality",
+      "category": "general_athleticism",
+      "higher_is_better": false,
+      "lower_is_better": true,
+      "raw_or_derived": "derived",
+      "derivation": "abs(left_cm - right_cm)",
+      "source": "PERFID-MBATIA-FINAL section A",
+      "protocol_version": "PERFID-v1",
+      "validity_constraints": {
+        "min": 0,
+        "max": 100
+      },
+      "minimum_sample": 1,
+      "sample_available": 1,
+      "confidence_method": "single_trial",
+      "threshold_trigger": {
+        "value": 21,
+        "unit": "cm",
+        "observed_action": "BILATERAL CORRECTION REQUIRED",
+        "note": "Threshold value at which the flag fired for ATH-043 (L122/R101). The actual THRESHOLD is not stated — 21cm is the observed firing value, not a documented cutoff."
+      },
+      "applicable_disciplines": [
+        "*"
+      ],
+      "status": "INFERRED",
+      "notes": "The metric is attested by a shipped athlete document, but the threshold that triggers 'BILATERAL CORRECTION REQUIRED' is not documented. Store left and right as separate raw observations; compute the delta. Do NOT store only the delta."
+    },
+    {
+      "metric_id": "GA_SHUTTLE_5_10_5_S",
+      "name": "shuttle_5_10_5",
+      "display_name": "5-10-5 Shuttle",
+      "definition": "Pro-agility shuttle: 5m one way, 10m back, 5m return.",
+      "unit": "s",
+      "measurement_method": "Timed, off-skate.",
+      "capture_mode": "TIMED",
+      "dimension": "agility",
+      "category": "general_athleticism",
+      "higher_is_better": false,
+      "lower_is_better": true,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 1",
+      "source_rationale_verbatim": "Lateral agility",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "min": 4.0,
+        "max": 25.0
+      },
+      "minimum_sample": 1,
+      "sample_available": 0,
+      "confidence_method": "single_trial",
+      "applicable_disciplines": [
+        "*"
+      ],
+      "status": "VERIFIED"
+    },
+    {
+      "metric_id": "GA_PLANK_HOLD_S",
+      "name": "plank_hold",
+      "display_name": "Plank Hold",
+      "definition": "Duration a front plank is held before technical failure.",
+      "unit": "s",
+      "measurement_method": "Timed hold to failure.",
+      "capture_mode": "TIMED",
+      "dimension": "core_stability",
+      "category": "general_athleticism",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 1",
+      "source_rationale_verbatim": "Core/skating posture",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "min": 0,
+        "max": 600
+      },
+      "minimum_sample": 1,
+      "sample_available": 0,
+      "confidence_method": "single_trial",
+      "applicable_disciplines": [
+        "*"
+      ],
+      "status": "VERIFIED",
+      "notes": "'Technical failure' is not defined by the protocol. Two coaches may stop the clock at different points."
+    },
+    {
+      "metric_id": "SK_FIGURE8_S",
+      "name": "figure_8_speed",
+      "display_name": "Figure-8 Speed",
+      "definition": "Time to complete a figure-8 skating circuit.",
+      "unit": "s",
+      "measurement_method": "Timed on-skate. Cone spacing NOT specified by the protocol.",
+      "capture_mode": "TIMED",
+      "dimension": "technical_skill",
+      "category": "skating_technicals",
+      "higher_is_better": false,
+      "lower_is_better": true,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 2",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "min": 3.0,
+        "max": 60.0
+      },
+      "minimum_sample": 1,
+      "sample_available": 0,
+      "confidence_method": "single_trial",
+      "applicable_disciplines": [
+        "inline_skating",
+        "ice_skating",
+        "inline_hockey",
+        "ice_hockey",
+        "figure_skating"
+      ],
+      "status": "VERIFIED",
+      "notes": "Cone spacing is load-bearing and undocumented. Two sessions with different spacing are not comparable. Record spacing as protocol metadata before any benchmark is built."
+    },
+    {
+      "metric_id": "SK_CROSSOVER_QUALITY",
+      "name": "crossover_quality",
+      "display_name": "Crossover Quality",
+      "definition": "Coach's ordinal assessment of crossover technique.",
+      "unit": null,
+      "scale": {
+        "min": 1,
+        "max": 5
+      },
+      "measurement_method": "Coach observation. 'Focus on form first, then speed.'",
+      "capture_mode": "OBSERVE",
+      "dimension": "technical_skill",
+      "category": "skating_technicals",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 2",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "allowed": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "minimum_sample": 1,
+      "sample_available": 0,
+      "confidence_method": "single_observer",
+      "applicable_disciplines": [
+        "inline_skating",
+        "ice_skating",
+        "inline_hockey",
+        "ice_hockey",
+        "figure_skating"
+      ],
+      "status": "VERIFIED",
+      "notes": "The sheet states the 1-5 scale but does NOT provide rubric anchors, unlike the TC_* metrics which have 5 prose descriptors. Anchors should be authored before this drives anything."
+    },
+    {
+      "metric_id": "SK_TSTOP_POWER_BRAKE",
+      "name": "tstop_power_brake",
+      "display_name": "T-Stop / Power Brake",
+      "definition": "Whether the athlete can execute a T-stop or power brake.",
+      "unit": null,
+      "measurement_method": "Coach observation, pass/fail checkbox.",
+      "capture_mode": "OBSERVE",
+      "dimension": "technical_skill",
+      "category": "skating_technicals",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 2",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "allowed": [
+          true,
+          false
+        ]
+      },
+      "minimum_sample": 1,
+      "sample_available": 0,
+      "confidence_method": "single_observer",
+      "applicable_disciplines": [
+        "inline_skating",
+        "ice_skating",
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "status": "VERIFIED",
+      "notes": "The sheet offers ONE checkbox pair for two named skills (T-Stop OR Power Brake). Which was performed is not recorded. Consider splitting into two metrics on the next sheet revision."
+    },
+    {
+      "metric_id": "SK_FWD_BWD_TRANSITION",
+      "name": "fwd_bwd_transition",
+      "display_name": "Forward/Backward Transition",
+      "definition": "UNKNOWN.",
+      "unit": null,
+      "measurement_method": "UNKNOWN",
+      "capture_mode": null,
+      "dimension": "technical_skill",
+      "category": "skating_technicals",
+      "higher_is_better": null,
+      "lower_is_better": null,
+      "raw_or_derived": null,
+      "source": "RIVERSIDE-2026-04-02 block 2",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": null,
+      "minimum_sample": null,
+      "sample_available": 0,
+      "confidence_method": null,
+      "applicable_disciplines": [
+        "inline_skating",
+        "ice_skating",
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "status": "UNKNOWN",
+      "notes": "The row appears on the capture sheet with NO unit, NO scale and NO pass/fail box — every other row in block 2 has one. The instrument is undefined. Deliberately NOT guessed into an ordinal. Blocks on D-12."
+    },
+    {
+      "metric_id": "HK_STICKHANDLING_WEAVE_S",
+      "name": "stickhandling_weave",
+      "display_name": "Stickhandling Weave",
+      "definition": "Time to weave a cone set while maintaining puck/ball control.",
+      "unit": "s",
+      "measurement_method": "Timed. Cone count and spacing NOT specified.",
+      "capture_mode": "TIMED",
+      "dimension": "technical_skill",
+      "category": "sport_specific",
+      "higher_is_better": false,
+      "lower_is_better": true,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 3",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "min": 3.0,
+        "max": 90.0
+      },
+      "minimum_sample": 1,
+      "sample_available": 0,
+      "confidence_method": "single_trial",
+      "applicable_disciplines": [
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "discipline_gated": true,
+      "status": "VERIFIED",
+      "notes": "Explicitly N/A for figure skating on the capture sheet."
+    },
+    {
+      "metric_id": "HK_TARGET_ACCURACY_X10",
+      "name": "target_accuracy",
+      "display_name": "Target Accuracy",
+      "definition": "Number of successful target hits out of 10 attempts.",
+      "unit": "x/10",
+      "measurement_method": "10 attempts at a target; count hits.",
+      "capture_mode": "COUNT",
+      "dimension": "technical_skill",
+      "category": "sport_specific",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 3",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "min": 0,
+        "max": 10,
+        "integer": true
+      },
+      "minimum_sample": 1,
+      "sample_available": 0,
+      "confidence_method": "fixed_denominator_10",
+      "applicable_disciplines": [
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "discipline_gated": true,
+      "status": "VERIFIED",
+      "notes": "Denominator is fixed at 10 by the protocol, so this is the one COUNT metric where the rate is directly comparable without storing the denominator separately."
+    },
+    {
+      "metric_id": "FS_SPIRAL_GLIDE_HOLD_S",
+      "name": "spiral_glide_hold",
+      "display_name": "Spiral / Glide Hold",
+      "definition": "Duration a spiral or glide position is held.",
+      "unit": "s",
+      "measurement_method": "Timed hold.",
+      "capture_mode": "TIMED",
+      "dimension": "technical_skill",
+      "category": "sport_specific",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 3",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "min": 0,
+        "max": 120
+      },
+      "minimum_sample": 1,
+      "sample_available": 0,
+      "confidence_method": "single_trial",
+      "applicable_disciplines": [
+        "figure_skating"
+      ],
+      "discipline_gated": true,
+      "status": "VERIFIED",
+      "notes": "Explicitly N/A for hockey and junior on the capture sheet."
+    },
+    {
+      "metric_id": "FS_ONE_FOOT_SPIN_ROTATIONS",
+      "name": "one_foot_spin_rotations",
+      "display_name": "1-Foot Spin Rotations",
+      "definition": "Completed rotations in a one-foot spin.",
+      "unit": "count",
+      "measurement_method": "Count rotations until the spin breaks.",
+      "capture_mode": "COUNT",
+      "dimension": "technical_skill",
+      "category": "sport_specific",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 3",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "min": 0,
+        "max": 40,
+        "integer": true
+      },
+      "minimum_sample": 1,
+      "sample_available": 0,
+      "confidence_method": "single_trial",
+      "applicable_disciplines": [
+        "figure_skating"
+      ],
+      "discipline_gated": true,
+      "status": "VERIFIED"
+    },
+    {
+      "metric_id": "TC_LOW_COG",
+      "name": "low_centre_of_gravity",
+      "display_name": "Low Centre of Gravity",
+      "definition": "Coach's rubric-anchored assessment of stance depth and stability.",
+      "unit": null,
+      "scale": {
+        "min": 1,
+        "max": 5,
+        "labels": {
+          "1": "Poor/Unstable",
+          "2": "Developing/Minimal",
+          "3": "Average/Basic",
+          "4": "Strong/Good",
+          "5": "Elite"
+        }
+      },
+      "measurement_method": "Coach selects one of five full prose descriptors. The complete descriptor string is the source value.",
+      "capture_mode": "OBSERVE",
+      "dimension": "movement_quality",
+      "category": "technical_compliance",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 4; RAW DATA INPUT 2020-2026",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "allowed": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "minimum_sample": 1,
+      "sample_available": 383,
+      "sample_distribution": {
+        "1": 21,
+        "2": 86,
+        "3": 173,
+        "4": 90,
+        "5": 13,
+        "source": "RAW DATA INPUT 2026(5).csv"
+      },
+      "confidence_method": "single_observer_rubric_anchored",
+      "applicable_disciplines": [
+        "inline_skating",
+        "ice_skating",
+        "figure_skating",
+        "foundational_skating",
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "status": "VERIFIED",
+      "notes": "Rubric-anchored, which is stronger than a bare ordinal. Column name drifts three ways across years including a literal backslash ('Low_Center_of\\_Gravity', 2022) — see source_header_map."
+    },
+    {
+      "metric_id": "TC_FULL_EXTENSION_PUSH",
+      "name": "full_extension_on_push",
+      "display_name": "Full Extension on Push",
+      "definition": "Coach's rubric-anchored assessment of leg extension through the skating push.",
+      "unit": null,
+      "scale": {
+        "min": 1,
+        "max": 5,
+        "labels": {
+          "1": "Poor/Unstable",
+          "2": "Developing/Minimal",
+          "3": "Average/Basic",
+          "4": "Strong/Good",
+          "5": "Elite"
+        }
+      },
+      "measurement_method": "Coach selects one of five full prose descriptors.",
+      "capture_mode": "OBSERVE",
+      "dimension": "movement_quality",
+      "category": "technical_compliance",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 4; RAW DATA INPUT 2020-2026",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "allowed": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "minimum_sample": 1,
+      "sample_available": 383,
+      "sample_distribution": {
+        "1": 17,
+        "2": 73,
+        "3": 180,
+        "4": 101,
+        "5": 12,
+        "source": "RAW DATA INPUT 2026(5).csv"
+      },
+      "confidence_method": "single_observer_rubric_anchored",
+      "applicable_disciplines": [
+        "inline_skating",
+        "ice_skating",
+        "figure_skating",
+        "foundational_skating",
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "status": "VERIFIED"
+    },
+    {
+      "metric_id": "TC_PERFECT_RECOVERY",
+      "name": "perfect_recovery",
+      "display_name": "Perfect Recovery",
+      "definition": "Coach's rubric-anchored assessment of balance recovery after a disturbance.",
+      "unit": null,
+      "scale": {
+        "min": 1,
+        "max": 5,
+        "labels": {
+          "1": "Poor/Unstable",
+          "2": "Developing/Minimal",
+          "3": "Average/Basic",
+          "4": "Strong/Good",
+          "5": "Elite"
+        }
+      },
+      "measurement_method": "Coach selects one of five full prose descriptors.",
+      "capture_mode": "OBSERVE",
+      "dimension": "movement_quality",
+      "category": "technical_compliance",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 4; RAW DATA INPUT 2020-2026",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "allowed": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "minimum_sample": 1,
+      "sample_available": 383,
+      "sample_distribution": {
+        "1": 12,
+        "2": 62,
+        "3": 153,
+        "4": 150,
+        "5": 6,
+        "source": "RAW DATA INPUT 2026(5).csv"
+      },
+      "confidence_method": "single_observer_rubric_anchored",
+      "applicable_disciplines": [
+        "inline_skating",
+        "ice_skating",
+        "figure_skating",
+        "foundational_skating",
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "status": "VERIFIED"
+    },
+    {
+      "metric_id": "PF_RAW_DASH_10M_S",
+      "name": "raw_dash_10m",
+      "display_name": "Raw Dash (10m)",
+      "definition": "Timed 10m dash on skates, captured every session.",
+      "unit": "s",
+      "measurement_method": "Timed on-skate 10m. Timing method (hand vs gate) NOT specified.",
+      "capture_mode": "TIMED",
+      "dimension": "acceleration",
+      "category": "performance",
+      "higher_is_better": false,
+      "lower_is_better": true,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 4; RAW DATA INPUT 2026 'Raw Time(10m dash)'",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "min": 1.0,
+        "max": 15.0
+      },
+      "minimum_sample": 1,
+      "sample_available": null,
+      "confidence_method": "single_trial",
+      "applicable_disciplines": [
+        "inline_skating",
+        "ice_skating",
+        "inline_hockey",
+        "ice_hockey",
+        "foundational_skating"
+      ],
+      "status": "VERIFIED",
+      "notes": "The source column frequently contains the free text \"Didn't manage to take the speed\". That is CORRECT coach behaviour (refusing to invent a number) recorded in a numeric column. Load into observation.not_recorded_reason with quality_status='NOT_RECORDED'. Never 0, never bare NULL. PERFID-MBATIA-FINAL records 10m = 2.52s scored '8/10 -- Above Average', establishing the band+label presentation pattern."
+    },
+    {
+      "metric_id": "EE_TECHNICAL_BREAKS",
+      "name": "technical_breaks",
+      "display_name": "Technical Breaks",
+      "definition": "Count of technique breakdowns observed during a session.",
+      "unit": "count",
+      "measurement_method": "Coach tally. Definition of a 'break' is NOT documented.",
+      "capture_mode": "COUNT",
+      "dimension": "engagement",
+      "category": "effort_engagement",
+      "higher_is_better": false,
+      "lower_is_better": true,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 4; RAW DATA INPUT 2020-2026",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "min": 0,
+        "max": 50,
+        "integer": true,
+        "observed_range": [
+          0,
+          4
+        ]
+      },
+      "minimum_sample": 1,
+      "sample_available": 265,
+      "confidence_method": "single_observer",
+      "applicable_disciplines": [
+        "inline_skating",
+        "ice_skating",
+        "figure_skating",
+        "foundational_skating",
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "status": "VERIFIED",
+      "notes": "DIMENSION CORRECTED in v2: the protocol files this under Effort/Engagement, not Technical Compliance. It must NOT be aggregated into a technical composite. It is also confounded with exposure — a higher-performing athlete attempting harder work accumulates more breaks. This confound is the root cause of the DV_TECHNICAL_RATING inversion. THIS is the raw metric to migrate; DV_TECHNICAL_PRECISION is fully determined by it."
+    },
+    {
+      "metric_id": "EE_WORK_RATE",
+      "name": "work_rate",
+      "display_name": "Work Rate",
+      "definition": "Coach's assessment of effort and engagement during the session.",
+      "unit": null,
+      "scale": {
+        "min": 0,
+        "max": 10
+      },
+      "measurement_method": "Coach selects a labelled band, e.g. '5; Did the work but required constant prompting', '10; Lead the pack, high intensity, zero complains, set to finish drill'.",
+      "capture_mode": "OBSERVE",
+      "dimension": "engagement",
+      "category": "effort_engagement",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 4; RAW DATA INPUT 2020-2026",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "min": 0,
+        "max": 10
+      },
+      "minimum_sample": 1,
+      "sample_available": null,
+      "confidence_method": "single_observer",
+      "applicable_disciplines": [
+        "*"
+      ],
+      "status": "VERIFIED",
+      "notes": "Delimiter drifts between ';' and ':' across years, and label text is unstable ('complains' vs 'complaints'). Observed values cluster heavily at 5 and 10 — the intermediate scale may be unused in practice. Verify before benchmarking."
+    },
+    {
+      "metric_id": "EE_RPE",
+      "name": "rate_of_perceived_exertion",
+      "display_name": "Rate of Perceived Exertion",
+      "definition": "Perceived intensity of the session.",
+      "unit": null,
+      "scale": {
+        "min": 0,
+        "max": 10
+      },
+      "measurement_method": "Recorded as a labelled band, e.g. '5 (Moderate)', '7 (High / Vigorous)'.",
+      "capture_mode": "OBSERVE",
+      "dimension": "work_capacity",
+      "category": "effort_engagement",
+      "higher_is_better": false,
+      "lower_is_better": false,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 4; RAW DATA INPUT 2020-2026",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "min": 0,
+        "max": 10
+      },
+      "minimum_sample": 1,
+      "sample_available": null,
+      "confidence_method": "coach_assigned_not_athlete_reported",
+      "applicable_disciplines": [
+        "*"
+      ],
+      "status": "VERIFIED",
+      "notes": "NO DIRECTION: high RPE is neither good nor bad, it is a load descriptor. Both direction flags false. PROVENANCE CAVEAT: the source records this as coach-assigned; standard session-RPE is athlete-reported. Record whose perception it is."
+    },
+    {
+      "metric_id": "OU_PASSED_DETERMINANT_DRILL",
+      "name": "passed_determinant_drill",
+      "display_name": "Passed Determinant Drill",
+      "definition": "Whether the athlete passed the session's gating drill.",
+      "unit": null,
+      "measurement_method": "Coach pass/fail. The drill itself is free text in 'Determinant_Drill' and MUST be captured alongside.",
+      "capture_mode": "OBSERVE",
+      "dimension": "discipline_execution",
+      "category": "outcome",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "raw",
+      "source": "RIVERSIDE-2026-04-02 block 4; RAW DATA INPUT 2020-2026",
+      "protocol_version": "RIVERSIDE-v1",
+      "validity_constraints": {
+        "allowed": [
+          true,
+          false
+        ]
+      },
+      "minimum_sample": 1,
+      "sample_available": null,
+      "confidence_method": "single_observer",
+      "applicable_disciplines": [
+        "*"
+      ],
+      "status": "VERIFIED",
+      "notes": "ENCODING DRIFT: 'TRUE'/'FALSE' in 2020, 'YES'/'NO' in 2022. A boolean is meaningless without the drill — 'Walk on grass' and 'Beginner stepovers' are not the same test, so this is NOT comparable across sessions without the drill string."
+    },
+    {
+      "metric_id": "ND_PG",
+      "name": "puck_gazing",
+      "display_name": "Puck Gazing (Nairobi Deficit)",
+      "definition": "Degree to which the athlete keeps eyes up rather than fixating on the puck.",
+      "unit": null,
+      "scale": {
+        "min": 1,
+        "max": 4,
+        "labels": {
+          "1": "Chronic - stares >3 consecutive touches",
+          "2": "Developing - occasional glances, primarily head-down",
+          "3": "Competent - scans before reception, lapses under pressure",
+          "4": "Elite - eyes-up every touch, scans before and after reception at full speed"
+        }
+      },
+      "measurement_method": "Coach observation, scored every evaluated session.",
+      "capture_mode": "OBSERVE",
+      "dimension": "cognitive_tactical",
+      "category": "nairobi_deficit",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "raw",
+      "source": "DOSSIER-v2 §2.8",
+      "protocol_version": "ND-v1",
+      "validity_constraints": {
+        "allowed": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "minimum_sample": 1,
+      "sample_available": 0,
+      "confidence_method": "single_observer_rubric_anchored",
+      "applicable_disciplines": [
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "colour_encoding": {
+        "1": "Red",
+        "2": "Orange",
+        "3": "Blue",
+        "4": "Gold"
+      },
+      "status": "VERIFIED",
+      "notes": "Fully rubric-anchored with a structural fix prescribed per level. No captured data in the CSV corpus."
+    },
+    {
+      "metric_id": "ND_PP",
+      "name": "panic_passing",
+      "display_name": "Panic Passing (Nairobi Deficit)",
+      "definition": "Quality and composure of passing under pressure.",
+      "unit": null,
+      "scale": {
+        "min": 1,
+        "max": 4,
+        "labels": {
+          "1": "Chronic - blind backhand/hope pass at first pressure",
+          "2": "Developing - rushes without identifying receiver",
+          "3": "Competent - identifies receiver, timing slightly off",
+          "4": "Elite - calm, accurate, correct weight under heavy pressure"
+        }
+      },
+      "measurement_method": "Coach observation, scored every evaluated session.",
+      "capture_mode": "OBSERVE",
+      "dimension": "cognitive_tactical",
+      "category": "nairobi_deficit",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "raw",
+      "source": "DOSSIER-v2 §2.8",
+      "protocol_version": "ND-v1",
+      "validity_constraints": {
+        "allowed": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "minimum_sample": 1,
+      "sample_available": 0,
+      "confidence_method": "single_observer_rubric_anchored",
+      "applicable_disciplines": [
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "colour_encoding": {
+        "1": "Red",
+        "2": "Orange",
+        "3": "Blue",
+        "4": "Gold"
+      },
+      "status": "VERIFIED"
+    },
+    {
+      "metric_id": "ND_HC",
+      "name": "hero_complex",
+      "display_name": "Hero Complex (Nairobi Deficit)",
+      "definition": "Willingness to involve teammates rather than force solo play.",
+      "unit": null,
+      "scale": {
+        "min": 1,
+        "max": 4,
+        "labels": {
+          "1": "Chronic - refuses to pass, holds >4s regardless of open teammates",
+          "2": "Developing - passes only when completely closed down",
+          "3": "Competent - shares puck, prefers solo in scoring areas",
+          "4": "Elite - proactively involves teammates, creates numerical overloads"
+        }
+      },
+      "measurement_method": "Coach observation, scored every evaluated session.",
+      "capture_mode": "OBSERVE",
+      "dimension": "cognitive_tactical",
+      "category": "nairobi_deficit",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "raw",
+      "source": "DOSSIER-v2 §2.8",
+      "protocol_version": "ND-v1",
+      "validity_constraints": {
+        "allowed": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "minimum_sample": 1,
+      "sample_available": 0,
+      "confidence_method": "single_observer_rubric_anchored",
+      "applicable_disciplines": [
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "colour_encoding": {
+        "1": "Red",
+        "2": "Orange",
+        "3": "Blue",
+        "4": "Gold"
+      },
+      "status": "VERIFIED",
+      "notes": "This deficit is the behavioural counterpart of NRHL-PTS-v1. The point formula prices a two-player goal at 4 points versus 1 for a solo finish — the same doctrine expressed as an incentive rather than an assessment."
+    },
+    {
+      "metric_id": "ND_SP",
+      "name": "static_positioning",
+      "display_name": "Static Positioning (Nairobi Deficit)",
+      "definition": "Continuity and quality of off-puck movement and support.",
+      "unit": null,
+      "scale": {
+        "min": 1,
+        "max": 4,
+        "labels": {
+          "1": "Chronic - stands still >3s after passing/off-puck",
+          "2": "Developing - occasional movement, defaults to static",
+          "3": "Competent - moves into support, timing/angle inconsistent",
+          "4": "Elite - continuous mobile support, always offers a lane at correct angle/depth"
+        }
+      },
+      "measurement_method": "Coach observation, scored every evaluated session.",
+      "capture_mode": "OBSERVE",
+      "dimension": "cognitive_tactical",
+      "category": "nairobi_deficit",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "raw",
+      "source": "DOSSIER-v2 §2.8",
+      "protocol_version": "ND-v1",
+      "validity_constraints": {
+        "allowed": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "minimum_sample": 1,
+      "sample_available": 0,
+      "confidence_method": "single_observer_rubric_anchored",
+      "applicable_disciplines": [
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "colour_encoding": {
+        "1": "Red",
+        "2": "Orange",
+        "3": "Blue",
+        "4": "Gold"
+      },
+      "status": "VERIFIED"
+    },
+    {
+      "metric_id": "U8_M3_ENGAGEMENT_LEVEL",
+      "name": "engagement_level_u8",
+      "display_name": "Engagement Level (U8)",
+      "definition": "Athlete's engagement and wellbeing during the session.",
+      "unit": null,
+      "scale": {
+        "min": 1,
+        "max": 4
+      },
+      "measurement_method": "Coach observation 1-4.",
+      "capture_mode": "OBSERVE",
+      "dimension": null,
+      "category": "wellbeing",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "raw",
+      "source": "DOSSIER-v2 §2.8",
+      "protocol_version": "TIER-v1",
+      "validity_constraints": {
+        "allowed": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "minimum_sample": 1,
+      "sample_available": 0,
+      "confidence_method": "single_observer",
+      "applicable_age_tiers": [
+        "U8"
+      ],
+      "applicable_disciplines": [
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "status": "VERIFIED",
+      "notes": "WELLBEING SIGNAL, NOT PERFORMANCE. A score of 1 for 2 consecutive sessions triggers guardian consultation and a session-format override (20 min self-directed free play, coach observation only). EXCLUDED from every performance composite. The doctrinal constraint is explicit: 'A red flag is not a disciplinary action... The response is always environmental — change the constraint, not the player.'"
+    },
+    {
+      "metric_id": "DV_TECHNICAL_PRECISION",
+      "name": "technical_precision",
+      "display_name": "Technical Precision (derived)",
+      "definition": "Linear restatement of the technical break count.",
+      "unit": null,
+      "scale": {
+        "min": -4,
+        "max": 4
+      },
+      "measurement_method": "Not measured. Computed.",
+      "capture_mode": null,
+      "dimension": "engagement",
+      "category": "derived",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "derived",
+      "derivation": "4 - (2 * EE_TECHNICAL_BREAKS)",
+      "derivation_evidence": "Verified on 265 of 265 rows of RAW DATA INPUT 2026, zero mismatches. Observed pairs (breaks, precision): (0,4) (1,2) (2,0) (3,-2) (4,-4).",
+      "protocol_version": null,
+      "rule_version": "TECHPREC-v1",
+      "source": "RAW DATA INPUT 2022, 2026",
+      "validity_constraints": {
+        "min": -4,
+        "max": 4
+      },
+      "minimum_sample": 1,
+      "sample_available": 265,
+      "confidence_method": "deterministic",
+      "applicable_disciplines": [
+        "inline_skating",
+        "ice_skating",
+        "figure_skating",
+        "foundational_skating",
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "status": "VERIFIED",
+      "notes": "MUST NOT BE STORED AS A RAW OBSERVATION. Carries zero information beyond EE_TECHNICAL_BREAKS. The formula itself is correct and higher-is-better; the problem is downstream aggregation — see DV_TECHNICAL_RATING."
+    },
+    {
+      "metric_id": "DV_NRHL_POINTS",
+      "name": "nrhl_points",
+      "display_name": "NRHL Points (derived)",
+      "definition": "Scrimmage points, weighted to price assisted goals above solo goals.",
+      "unit": "points",
+      "measurement_method": "Not measured. Computed from the stat line.",
+      "capture_mode": null,
+      "dimension": "competitive_performance",
+      "category": "derived",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "derived",
+      "derivation": "(3 * assisted_goals) + (1 * solo_goals) + (1 * assists)",
+      "derivation_evidence": "Three independent agreements: (1) dossier reconciles 94/94 per-fixture records with zero mismatches, and the integrity check assisted+solo==total_goals also holds 94/94; (2) independently re-solved during this audit from athlete_individual_stats.csv for 31/31 athletes with integer in-range splits; (3) matches NRHL_POINT_FORMULA = { assisted: 3, solo: 1, assist: 1 } in lib/services/nrhl-etl.ts. Doctrinal intent stated verbatim in Group sessions.csv Week 1: 'Unselfish play (3pts for assist goals)'.",
+      "protocol_version": null,
+      "rule_version": "NRHL-PTS-v1",
+      "source": "Scrimmage Tracker; NRHL_CONTEXT_DOSSIER §2A.3",
+      "validity_constraints": {
+        "min": 0
+      },
+      "minimum_sample": 1,
+      "sample_available": 94,
+      "confidence_method": "deterministic",
+      "applicable_disciplines": [
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "status": "VERIFIED",
+      "notes": "NOT the standard hockey points stat. Noel Inoue: goals+assists = 58, NRHL points = 124. A dashboard recomputing points conventionally halves every athlete. Always display with rule_version. Implements Coach's Manual constraint S4 (Shared Attack Rule): a two-player goal generates 4 points of team value versus 1 for a solo finish."
+    },
+    {
+      "metric_id": "DV_NRHL_COMPOSITE",
+      "name": "nrhl_composite",
+      "display_name": "NRHL Composite Score (derived)",
+      "definition": "Certificate-driving composite across attendance, coach grade and scrimmage output.",
+      "unit": "points",
+      "measurement_method": "Not measured. Computed.",
+      "capture_mode": null,
+      "dimension": null,
+      "category": "derived",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "derived",
+      "derivation": "attendance_pct + (20 * avg_coach_grade) + nrhl_points",
+      "derivation_evidence": "Dossier validates across all 18 certified athletes, maximum absolute residual 0.048, attributable to the sheet displaying attendance rounded to 1dp while computing on the full fraction.",
+      "protocol_version": null,
+      "rule_version": "NRHL-COMP-v1",
+      "source": "Certificate Tracker tab (NOT present in the local CSV corpus); NRHL_CONTEXT_DOSSIER §2A.4",
+      "validity_constraints": null,
+      "minimum_sample": 1,
+      "sample_available": 18,
+      "confidence_method": "deterministic",
+      "applicable_disciplines": [
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "status": "VERIFIED",
+      "known_design_flaw": "NOT CROSS-DISCIPLINE COMPARABLE. Attendance contributes up to 100 and coach grade up to 100, while the points term is 0-124 and is only reachable by athletes who play scrimmages. Five certified athletes (all Inline Skating) score a structural 0 on the points term, yet the percentile rank driving certificate tier is computed across the whole n=18 pool. Jaydan Morara (19 sessions, 100% attendance, 0 points) ranks below Luke Rashed (1 session, 4 points). Segment percentile by discipline before this drives any parent-facing award.",
+      "notes": "The source tab is MISSING from the local corpus and must be recovered in the re-export. Certificate tiers: Elite All-Rounder >=90th percentile, Advanced >=70th, Core <70th, PERCENTRANK over n=18."
+    },
+    {
+      "metric_id": "DV_TECHNICAL_RATING",
+      "name": "technical_rating",
+      "display_name": "Technical Rating (derived, DEPRECATED)",
+      "definition": "Per-athlete mean of DV_TECHNICAL_PRECISION.",
+      "unit": null,
+      "scale": {
+        "min": -2.0,
+        "max": 2.4,
+        "observed": true
+      },
+      "measurement_method": "Not measured. Aggregated from a derived value.",
+      "capture_mode": null,
+      "dimension": "engagement",
+      "category": "derived",
+      "higher_is_better": null,
+      "lower_is_better": null,
+      "raw_or_derived": "derived",
+      "derivation": "mean(DV_TECHNICAL_PRECISION) per athlete",
+      "protocol_version": null,
+      "rule_version": "TECHRATE-v1",
+      "source": "athlete_individual_stats.csv 'technical_rating'; Athlete Progress.csv 'Avg Tech Precision'; DB column nrhl_athlete.technical_rating",
+      "validity_constraints": null,
+      "minimum_sample": null,
+      "sample_available": 31,
+      "confidence_method": null,
+      "applicable_disciplines": [
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "status": "DEPRECATED",
+      "notes": "DIRECTION IS CONFOUNDED WITH EXPOSURE, NOT SIMPLY INVERTED. The underlying formula (4-2b) is correctly higher-is-better, but observed values invert against performance because higher-performing athletes attempt harder work and accumulate more breaks: Noel Inoue (top scorer, 124 pts) -1.667; Dakota Weening -2.0; Leroy Sila (40% attendance, speed 1.6) +2.4. Averaging a raw count and naming it a 'rating' hides the confound. NO historical value is overwritten, recomputed or deleted. technical_rating_v2 is NOT defined here — normalising by session count vs drill difficulty is Decision D-10. Both direction flags are null until D-10 resolves.",
+      "additional_defect": "The two published rollups disagree on rounding: Raimi Skudi is -0.3 in Athlete Progress but -0.387 in athlete_individual_stats (-0.387 rounds to -0.4, not -0.3), so the aggregation windows or code differ. UNKNOWN which is correct."
+    },
+    {
+      "metric_id": "DV_COMPLIANCE_RATE_LOW_COG",
+      "name": "low_cog_compliance_rate",
+      "display_name": "Low COG % (derived)",
+      "definition": "Proportion of observed sessions in which the athlete was compliant on TC_LOW_COG.",
+      "unit": "%",
+      "measurement_method": "Not measured. Rate over an ordinal threshold.",
+      "capture_mode": null,
+      "dimension": "movement_quality",
+      "category": "derived",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "derived",
+      "derivation": "count(TC_LOW_COG >= THRESHOLD) / count(TC_LOW_COG observed)  -- THRESHOLD UNDEFINED",
+      "protocol_version": null,
+      "rule_version": null,
+      "source": "Athlete Progress.csv 'Low COG %'",
+      "validity_constraints": {
+        "min": 0,
+        "max": 100
+      },
+      "minimum_sample": 1,
+      "sample_available": 383,
+      "confidence_method": null,
+      "applicable_disciplines": [
+        "inline_skating",
+        "ice_skating",
+        "figure_skating",
+        "foundational_skating",
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "status": "UNKNOWN",
+      "notes": "THE PHASE-AUDIT DRAFT WAS WRONG ABOUT THIS. It reported the columns as empty and concluded the data was absent. The raw ordinals are ABUNDANT (383 observations, all five levels attested: 21/86/173/90/13). The source rollup reports 0% for EVERY athlete, which is impossible against that distribution even at a '=5' threshold (13 attestations). The rollup formula in the Athlete Progress tab is BROKEN. Recomputable once the compliance threshold is decided — Decision D-09. Do NOT import from Athlete Progress. Do NOT record as 'no data'. Same applies to DV_COMPLIANCE_RATE_FULL_EXTENSION and DV_COMPLIANCE_RATE_PERFECT_RECOVERY."
+    },
+    {
+      "metric_id": "DV_SPEED_SCORE_2026",
+      "name": "speed_score_2026",
+      "display_name": "Speed Score 2026 (derived)",
+      "definition": "Banded speed score appearing only in the 2026 sheet.",
+      "unit": null,
+      "scale": {
+        "min": 0,
+        "max": 10
+      },
+      "measurement_method": "UNKNOWN.",
+      "capture_mode": null,
+      "dimension": "speed",
+      "category": "derived",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "derived",
+      "derivation": "UNKNOWN",
+      "protocol_version": null,
+      "rule_version": null,
+      "source": "RAW DATA INPUT 2026 'Speed score'",
+      "validity_constraints": null,
+      "minimum_sample": null,
+      "sample_available": null,
+      "confidence_method": null,
+      "applicable_disciplines": [
+        "inline_skating",
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "status": "UNKNOWN",
+      "notes": "Values are labelled ('6 (Average)', '8 (Great)'). CRITICALLY: populated in rows where PF_RAW_DASH_10M_S is the free text \"Didn't manage to take the speed\" — so it is NOT a function of the timed dash. Its inputs are unidentified. Blocks on D-12."
+    },
+    {
+      "metric_id": "DV_POWER_SCORE_2026",
+      "name": "power_score_2026",
+      "display_name": "Power Score 2026 (derived)",
+      "definition": "Computed power score appearing only in the 2026 sheet.",
+      "unit": null,
+      "measurement_method": "UNKNOWN.",
+      "capture_mode": null,
+      "dimension": "explosive_power",
+      "category": "derived",
+      "higher_is_better": true,
+      "lower_is_better": false,
+      "raw_or_derived": "derived",
+      "derivation": "UNKNOWN",
+      "protocol_version": null,
+      "rule_version": null,
+      "source": "RAW DATA INPUT 2026 'Power Score'",
+      "validity_constraints": null,
+      "minimum_sample": null,
+      "sample_available": null,
+      "confidence_method": null,
+      "applicable_disciplines": [
+        "inline_skating",
+        "inline_hockey",
+        "ice_hockey"
+      ],
+      "status": "UNKNOWN",
+      "notes": "Values carry full float precision (4.333333333, 5.333333333, 3.0) — the signature of a spreadsheet formula averaging small integers. Inputs unidentified. Blocks on D-12."
+    },
+    {
+      "metric_id": "DV_SESSION_LOAD",
+      "name": "session_load",
+      "display_name": "Session Load (derived)",
+      "definition": "Training load for a session.",
+      "unit": "AU",
+      "measurement_method": "Not measured. Computed.",
+      "capture_mode": null,
+      "dimension": "work_capacity",
+      "category": "derived",
+      "higher_is_better": null,
+      "lower_is_better": null,
+      "raw_or_derived": "derived",
+      "derivation": "apparently EE_RPE * SESSION_DURATION_MIN (300 = 5*60, 420 = 7*60 in 2020 rows) -- NOT VERIFIED across the corpus",
+      "protocol_version": null,
+      "rule_version": null,
+      "source": "RAW DATA INPUT 2020-2026 'Session_Load'",
+      "validity_constraints": {
+        "min": 0
+      },
+      "minimum_sample": null,
+      "sample_available": null,
+      "confidence_method": null,
+      "applicable_disciplines": [
+        "*"
+      ],
+      "status": "INFERRED",
+      "notes": "STORED VALUE IS UNUSABLE: '#REF!' for 100% of 2022 rows (984 occurrences corpus-wide). Recompute from RPE x duration rather than importing. The formula is INFERRED from two 2020 rows, not attested by any protocol document. Blocks on D-14."
+    }
+  ],
+  "excluded_from_registry": [
+    {
+      "name": "VEO_CLIP_TAG",
+      "reason": "Verification evidence, not a performance metric. Belongs in the trust layer."
+    },
+    {
+      "name": "GPS / venue verification confidence",
+      "reason": "Trust layer. 'Verification Confidence 93%' must never read as 'Performance 93%'."
+    },
+    {
+      "name": "nrhl_metric.capture_confidence",
+      "reason": "Date-parse confidence, not measurement confidence. Belongs on observation.date_confidence."
+    },
+    {
+      "name": "Payment_Status",
+      "reason": "Commerce. Routes to enrollment/registrations, never to an observation."
+    },
+    {
+      "name": "Trend (Tech)",
+      "reason": "Athlete Progress column reading '↓ Needs Work' for every athlete — a formula output, not an assessment."
+    }
+  ],
+  "open_blockers": [
+    {
+      "id": "D-09",
+      "blocks": [
+        "DV_COMPLIANCE_RATE_LOW_COG",
+        "DV_COMPLIANCE_RATE_FULL_EXTENSION",
+        "DV_COMPLIANCE_RATE_PERFECT_RECOVERY"
+      ],
+      "question": "What ordinal threshold counts as 'compliant'?"
+    },
+    {
+      "id": "D-10",
+      "blocks": [
+        "DV_TECHNICAL_RATING"
+      ],
+      "question": "How should technical breaks be normalised for exposure before any rating is derived?"
+    },
+    {
+      "id": "D-11",
+      "blocks": [
+        "all 15 tier-specific metrics",
+        "ND_PG",
+        "ND_PP",
+        "ND_HC",
+        "ND_SP"
+      ],
+      "question": "How is age tier established when DOB is not collected and age group is unstable per athlete?"
+    },
+    {
+      "id": "D-12",
+      "blocks": [
+        "DV_SPEED_SCORE_2026",
+        "DV_POWER_SCORE_2026",
+        "SK_FWD_BWD_TRANSITION"
+      ],
+      "question": "What are the derivations / instruments? Recoverable only from the live sheet formulas."
+    },
+    {
+      "id": "D-14",
+      "blocks": [
+        "DV_SESSION_LOAD"
+      ],
+      "question": "Confirm RPE x duration, and how to treat 2022's 984 #REF! rows."
+    }
+  ],
+  "field_notes": {
+    "protocol_version": "null on derived metrics by design — a derived value has a rule_version (the calculation), not a capture protocol."
+  }
+}
