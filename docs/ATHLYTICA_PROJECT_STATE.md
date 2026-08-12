@@ -11,12 +11,13 @@ repository, without any prior conversation.
 
 | | |
 |---|---|
-| **Timestamp** | 2026-08-12 (Phase 0.3H) |
-| **Commit** | `origin/main` = `f7f451a` — **0.3D + 0.3E + 0.3F are pushed** (pushed between phases, not by this session). `0f4a20a` (0.3G) and the 0.3H commit are **local only**. |
+| **Timestamp** | 2026-08-12 (Phase 0.3I) |
+| **Commit** | `origin/main` = **`4cf7787`** = `HEAD`. Everything through 0.3H is pushed (0.3I, 2026-08-12 ~22:12 UTC). |
+| **Deployment** | ⚠ **NOT DEPLOYED.** 13 minutes after the push, `GET /api/v1/onboarding/google-forms` returns **405** on both `athlytica-systems-engine.vercel.app` and `www.nairobihockey.com` — the old POST-only handler. The retired build exports `GET` and would return **410**. **Production is running pre-0.3H code.** See D-28. |
 | **Working tree** | clean. |
 | **Supabase project** | `qxfrypvevjsyzkquewxh` |
-| **Applied migrations** | **34** — M2 `20260812083829_record_classification`, M3 `20260812122254_m3_payment_replay_integrity`, **M4 `20260812172530_m4_payment_authorization_boundary`** |
-| **Local migration files** | **35** — the three newest (M2, M3, M4) are the **only** files whose names match their applied versions (D-16 pattern) |
+| **Applied migrations** | **36** — `20260812221912_crm_core` applied 2026-08-12 22:19 UTC by **another actor**, concurrent with this phase (6 `crm_*` tables; local files exist but are **untracked** — not this session's work and not committed here). Previously **34** — M2 `20260812083829_record_classification`, M3 `20260812122254_m3_payment_replay_integrity`, **M4 `20260812172530_m4_payment_authorization_boundary`** |
+| **Local migration files** | **36** — M2, M3, M4 and the concurrent `crm_core` are the only files whose names match their applied versions (D-16 pattern). |
 | **Test suite** | `node --test "tests/**/*.test.mts"` → **178 pass / 0 fail** |
 | **Typecheck** | **clean** · `next build` **✓ compiled successfully** (0.3H) |
 | **Mutation coverage** | **21 / 21 caught** — every live athlete-creation door, plus the Google Forms retirement guards |
@@ -34,7 +35,7 @@ repository, without any prior conversation.
 | `bigice_enrollment` | **0** |
 | `bigice_document` | **0** |
 | `nrhl_athlete` | **0** |
-| `registrations` | **2** — `ATH-9YWQ` (NRHL, 27,500) + `ATH-WKTR` (BIG_ICE academy, 180,000, arrived 2026-08-12 13:38). **Same household, two ventures** — the live F-5 case. |
+| `registrations` | **3, ONE household, two ventures** — `ATH-9YWQ` (NRHL, 27,500), `ATH-WKTR` (BIG_ICE academy, 180,000), `ATH-ZVPD` (BIG_ICE academy, 95,000, arrived 2026-08-12 19:28). All `PENDING_PAYMENT`. The live F-5 case, now three deep: under M4 an STK payment from that phone that does **not** match by `account_reference` resolves to `AMBIGUOUS_VENTURE` → `RECONCILIATION_REQUIRED` rather than settling the wrong one. |
 | `payment_events` | 5 (all classified TEST) |
 | `record_classification` | **5** (new) |
 | `gate_states` | 1 (**G-W6-PAY now live=false, evidence=null**) |
@@ -54,11 +55,11 @@ repository, without any prior conversation.
 | **Athlete ID sequence** | `scalable_id_sequence = 504`. Moved 500 → 504 during Phase 0.1 with **zero athlete rows persisted** — 4 codes burned. Root cause found (see R15). New canonical `athlytica_id_seq` **not created**. |
 | **RLS** | Still **disabled** on all 4 `athlytica_core` tables, and advisor `rls_disabled` still red — but **R1–R12 executed 2026-08-12 and the exposure it warns about does not exist**: every client role is denied at the schema level. 12 probes run, 12 pass. R4–R8 blocked because the canonical tables they test **do not exist yet** (Phase 1), not because of the environment. Containment script rewritten to add RLS without adding grants. See `phase0/RLS_TEST_RESULTS.md`. |
 | **Payments** | **Replay integrity live (M3).** Duplicate = all immutable attrs equal → idempotent no-op. Any attr differs → `RECONCILIATION_REQUIRED`, evidence preserved in `payment_reconciliation_exception`, nothing settled, stored event never modified. Pre-classified TEST receipts return `TEST_CLASSIFIED` and cannot flip the gate or settle. 5 `payment_events`, all `SETTLED_UNMATCHED` — **none matches any registration**. **All five are classified TEST** in `record_classification` (M2, applied 2026-08-12): PRODUCTION revenue reads KES 0.00. **All five are synthetic** (`AUDITTEST001-004` + `SGX7HQ2LM9`, the last confirmed absent from the Safaricom statement by the owner, 2026-08-12). **Production has never processed a real payment.** Table remains append-only by trigger — the 5 rows were classified, never modified. |
-| **Registration** | **2 rows, one household, two ventures.** `ATH-9YWQ` (NRHL `combine_27500`, 27,500, STK 2026-08-11 19:10) and `ATH-WKTR` (BIG_ICE academy, 180,000, arrived 2026-08-12 13:38). Both `PENDING_PAYMENT`, athlete "Adonis". This is the live F-5 case: before M4 a payment from that phone matching neither amount would have settled whichever was pushed most recently, regardless of venture. Under M4 it is `RECONCILIATION_REQUIRED`. |
+| **Registration** | **3 rows, ONE household, two ventures** — see the row-count table. All `PENDING_PAYMENT`. The live F-5 case. **M4 is applied in the database, so the protection is real even though the application build that calls it is not yet deployed** — the venture-constrained matcher lives in `settle_payment_transaction`, not in the app. |
 | **Guardian** | `likeEscape` authorization fix **committed to `main`** (`0441e0c`). Unit-tested. **Not integration-tested against a database.** |
-| **Onboarding** | Big Ice path live (`lib/services/bigice-onboarding.ts`). NRHL path live (`app/api/v1/workspaces/nrhl/onboard-paid-athlete`). **Both mint an athlete code outside the insert transaction** — see R15. **Google Forms retired 0.3H** — `/api/v1/onboarding/google-forms` answers `410 CHANNEL_RETIRED` and creates nothing. **Four live athlete-creation doors, down from five**: three payment-authorized (Big Ice callback, retry, NRHL webhook) + one grant-gated import (`nrhl/ingest`). |
+| **Onboarding** | Big Ice path live (`lib/services/bigice-onboarding.ts`). NRHL path live (`app/api/v1/workspaces/nrhl/onboard-paid-athlete`). **Both mint an athlete code outside the insert transaction** — see R15. **Google Forms retired in `main` (0.3H) but NOT YET IN PRODUCTION** — the deployed build still serves the old creating handler (405 on GET, not 410). Four creation doors in git; **five still live in production** until the deploy lands. |
 | **Portal** | `resolveGuardian()` reads `bigice_athlete` by `guardian_email` ILIKE. 0 rows, so no exposure today. |
-| **Migration state** | **34 applied / 35 local files; exactly three versions match** — M2 `20260812083829`, M3 `20260812122254`, M4 `20260812172530`, all aligned deliberately. The other 32 do not. Cause: `apply_migration` stamps `to_char(current_timestamp,…)` — **M4 hit this trap during 0.3E** (written as `…164500`, applied as `…172530`) and the local files were renamed to match. `supabase db push` **must not be run**. |
+| **Migration state** | **36 applied / 36 local files; four versions match** — M2 `20260812083829`, M3 `20260812122254`, M4 `20260812172530`, all aligned deliberately. The other 32 do not. Cause: `apply_migration` stamps `to_char(current_timestamp,…)` — **M4 hit this trap during 0.3E** (written as `…164500`, applied as `…172530`) and the local files were renamed to match. `supabase db push` **must not be run**. |
 | **Legacy data** | **Nothing migrated.** ~3,096 session rows, 209 athlete IDs across 23 `SOURCE_CANDIDATE` CSVs. No file is authoritative. |
 | **Metrics** | Registry v2: 27 VERIFIED / 2 INFERRED / 4 UNKNOWN / 1 DEPRECATED. **Not finalised** — 5 blockers. |
 | **Certificates** | `NRHL-COMP-v1` reproduces exactly, but is **structurally unsafe** (DQ-050). `nrhl_athlete` is empty, so nothing is issued from the system. Freeze recommended. |
@@ -169,18 +170,22 @@ Investigations already completed. Do not redo these without new evidence.
 
 ## NEXT ACTION
 
-> **Push `0f4a20a` (0.3G) and the 0.3H retirement commit.**
+> **Find out why `main` is not deploying.**
 >
-> `origin/main` is at `f7f451a`, so 0.3D–0.3F — including the M4
-> application code that calls the payment authorization boundary — are
-> already on the deploy branch. Two commits are still local, and one of
-> them is the Google Forms retirement.
+> `origin/main` is `4cf7787` and the working tree is clean, but 13 minutes
+> after the push both production aliases still serve the pre-0.3H build
+> (`GET /api/v1/onboarding/google-forms` → 405, not 410). CLAUDE.md budgets
+> ~3 minutes. The branch is correct — this is not the `master` mistake
+> repeating.
 >
-> **Until it is pushed, `/api/v1/onboarding/google-forms` is still live in
-> production and still creates athletes.** It is HMAC-gated and has never
-> had a real caller, so this is not urgent — but the retirement is not
-> real until it deploys, and this document should not be read as saying
-> the door is shut when it is only shut locally.
+> **Everything verified in 0.3D–0.3H is code that production is not
+> running.** The database has M4; the deployed application does not call
+> it. The Google Forms door is retired in git and open in production.
+>
+> Vercel state could not be read from here: the MCP connector returns 403
+> for this project and `gh` is not installed. Check the Vercel dashboard
+> for `athlytica-systems-engine` — a failed build, a disconnected Git
+> integration, or a paused project all produce exactly this.
 >
 > Also awaiting a yes/no, each one command: **D-26a** (classify the seven
 > synthetic records), **D-26b** (the 6 TTA demo athletes), **D-27**
