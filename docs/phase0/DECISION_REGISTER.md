@@ -456,7 +456,20 @@ Live status is always in [`docs/ATHLYTICA_PROJECT_STATE.md`](../ATHLYTICA_PROJEC
 | D-23 | Payment replay integrity + `G-W6-PAY` evidence | **CLOSED 2026-08-12.** M3 applied (`20260812122254`), tested 19/19 pre-apply including the critical regression. Duplicate ≠ conflicting replay: identical immutable attributes → idempotent `DUPLICATE`; any difference → `RECONCILIATION_REQUIRED` with evidence preserved and nothing settled. Gate reset to `live=false`. |
 | D-24 | Payment authorization boundary (F-1…F-5) | **CLOSED 2026-08-12 (Phase 0.3E).** M4 applied (`20260812172530`), tested 29/29 pre-apply. See below. |
 | D-25 | A second M-Pesa integration is being written outside the `DARAJA_*` rail | **OPEN — raised Phase 0.3F.** A complete STK client (`sendStkPush`, `getMpesaToken`, `normalizeKenyanPhone`) was found pasted into `app/api/v1/performance/route.ts`, where it broke the build. It uses six `MPESA_*` env vars that **do not exist** in this project, duplicates `utils/mpesaDaraja.ts` and `utils/msisdn.ts`, and pushes a **client-supplied amount** — violating "Money is never client-priced". Reverted, not adopted; preserved as a patch. **Two STK clients with two env namespaces against one Paybill is how a payment stops arriving.** Reconcile before any of it lands. |
-| D-26 | Is the Google Forms channel a **paid** or **unpaid** intake? | **OPEN — raised Phase 0.3F.** `onboard_athlete_from_google_form` writes `cohort_session_registry.enrollment_status = 'enrolled'` against a priced `commercial_price_tier` row with **no payment anywhere in the path**. 7 such rows exist in production. Contained (cannot reach portal, documents or revenue — see `BUILD_AND_CREATION_BOUNDARY_AUDIT.md` §7) but semantically it is an unpaid entitlement. **Paid** ⇒ it needs the M4 boundary and should start `pending_payment`. **Unpaid** ⇒ the status value is wrong and should say waitlist/registered. Not guessed; nothing changed. |
+| D-26 | Is the Google Forms channel a **paid** or **unpaid** intake? | **CLOSED 2026-08-12 (Phase 0.3G) — UNPAID / ADMINISTRATIVE.** Owner-decided. The seven records turned out to be **synthetic**, not unpaid customers: one athlete name, all seven `submission_id`s prefixed `test-`, cohort "Test Cohort A", 68-minute window on 2026-07-09, zero guardians. **The path has never taken a real submission**, so no counter-evidence exists and the stated default stands. F-7 downgraded MEDIUM → **LOW** (architecture defect, not a data defect). Classification moves G → **A, trusted administrative creation**. Disposition and the verified-not-applied classification SQL are in `GOOGLE_FORMS_ENROLLMENT_POLICY.md`. |
+| D-26a | Apply the seven-record TEST classification? | **OPEN — one command.** Additive, reversible, verified in a rolled-back transaction (7 + 7 rows, 0 over-reach, nothing mutated). Not applied: the brief forbade changing the seven records automatically. |
+| D-26b | Classify the 6 TTA demo athletes as DEMO? | **OPEN.** Different seeding path (`tta_international_football_academy_demo.sql`), deliberately not swept into D-26a. |
+| D-26c | **Is the Google Forms channel still in use at all?** | **OPEN — the most valuable question in 0.3G.** It has never processed a real submission and intake now runs through `/register`. If it is dead, retiring it removes a door outright, which beats guarding one. |
+
+> **D-26's original framing (0.3F) was wrong in one respect worth recording.**
+> It described the seven rows as *"unpaid entitlement"* and asked whether the
+> channel was paid. Investigating the rows first — as 0.3G's brief required
+> before any change — showed they were synthetic, so the premise that there
+> were seven unpaid *customers* was false. The architectural defect it named
+> is real; the data defect it implied was not. Corrected in
+> `GOOGLE_FORMS_ENROLLMENT_POLICY.md` §0, along with a narrower reading of
+> the price tier: Google Forms used `tier_group='intake_funnel'`, never the
+> `academy` group Big Ice sells from.
 | OPS-1 | Billable Supabase branch for RLS testing | **CLOSED — not needed.** Org is on the free plan; R1–R12 ran read-only at zero cost, and a branch would not have unblocked R4–R8 (canonical tables don't exist). Owner chose local Docker; not yet installed. |
 
 ---
