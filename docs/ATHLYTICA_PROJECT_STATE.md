@@ -11,13 +11,13 @@ repository, without any prior conversation.
 
 | | |
 |---|---|
-| **Timestamp** | 2026-08-12 (Phase 0.2) |
-| **Commit** | `0441e0c` — *feat(bigice): a Big Ice checkout that sells Big Ice, to one family at a time* |
-| **Working tree** | clean except `next-env.d.ts` (generated) and untracked `docs/` |
+| **Timestamp** | 2026-08-12 (Phase 0.3C) |
+| **Commit** | `658936e` — *docs(foundation): what the athlete record must be, before anything is written to it* |
+| **Working tree** | clean except `next-env.d.ts` (generated); docs committed and pushed to `main` |
 | **Supabase project** | `qxfrypvevjsyzkquewxh` |
-| **Applied migrations** | 31 |
-| **Local migration files** | 32 |
-| **Test suite** | `node --test "tests/**/*.test.mts"` → **142 pass / 0 fail** |
+| **Applied migrations** | **33** — M2 `20260812083829_record_classification`, M3 `20260812122254_m3_payment_replay_integrity` |
+| **Local migration files** | **34** — the two newest (M2, M3) are the **only** files whose names match their applied versions (D-16 pattern) |
+| **Test suite** | `node --test "tests/**/*.test.mts"` → **146 pass / 0 fail** (142 baseline + 4 new revenue-source guards, Phase 0.3C) |
 
 ### Row counts (read-only verification)
 
@@ -32,8 +32,10 @@ repository, without any prior conversation.
 | `bigice_document` | **0** |
 | `nrhl_athlete` | **0** |
 | `registrations` | 1 |
-| `payment_events` | 5 |
-| `gate_states` | 1 |
+| `payment_events` | 5 (all classified TEST) |
+| `record_classification` | **5** (new) |
+| `gate_states` | 1 (**G-W6-PAY now live=false, evidence=null**) |
+| `payment_reconciliation_exception` | **0** (new) |
 | `onboarding_funnel_events` | 0 |
 | `athlytica_core.scalable_id_sequence.current_value` | **504** |
 
@@ -48,12 +50,12 @@ repository, without any prior conversation.
 | **Canonical athlete** | **DOES NOT EXIST.** Designed only (`docs/phase0/CANONICAL_ATHLETE_ARCHITECTURE.md`). Five tables could still claim to be "the athlete". |
 | **Athlete ID sequence** | `scalable_id_sequence = 504`. Moved 500 → 504 during Phase 0.1 with **zero athlete rows persisted** — 4 codes burned. Root cause found (see R15). New canonical `athlytica_id_seq` **not created**. |
 | **RLS** | Still **disabled** on all 4 `athlytica_core` tables, and advisor `rls_disabled` still red — but **R1–R12 executed 2026-08-12 and the exposure it warns about does not exist**: every client role is denied at the schema level. 12 probes run, 12 pass. R4–R8 blocked because the canonical tables they test **do not exist yet** (Phase 1), not because of the environment. Containment script rewritten to add RLS without adding grants. See `phase0/RLS_TEST_RESULTS.md`. |
-| **Payments** | 5 `payment_events`, all `SETTLED_UNMATCHED` — **none matches any registration**. 4 are synthetic (`AUDITTEST00n`); 1 (`SGX7HQ2LM9`) is **UNRESOLVED**. Table is append-only by trigger. |
+| **Payments** | **Replay integrity live (M3).** Duplicate = all immutable attrs equal → idempotent no-op. Any attr differs → `RECONCILIATION_REQUIRED`, evidence preserved in `payment_reconciliation_exception`, nothing settled, stored event never modified. Pre-classified TEST receipts return `TEST_CLASSIFIED` and cannot flip the gate or settle. 5 `payment_events`, all `SETTLED_UNMATCHED` — **none matches any registration**. **All five are classified TEST** in `record_classification` (M2, applied 2026-08-12): PRODUCTION revenue reads KES 0.00. **All five are synthetic** (`AUDITTEST001-004` + `SGX7HQ2LM9`, the last confirmed absent from the Safaricom statement by the owner, 2026-08-12). **Production has never processed a real payment.** Table remains append-only by trigger — the 5 rows were classified, never modified. |
 | **Registration** | 1 row: `ATH-9YWQ`, NRHL, `combine_27500`, athlete "Adonis", still `PENDING_PAYMENT`, STK pushed 2026-08-11 19:10. |
 | **Guardian** | `likeEscape` authorization fix **committed to `main`** (`0441e0c`). Unit-tested. **Not integration-tested against a database.** |
 | **Onboarding** | Big Ice path live (`lib/services/bigice-onboarding.ts`). NRHL path live (`app/api/v1/workspaces/nrhl/onboard-paid-athlete`). **Both mint an athlete code outside the insert transaction** — see R15. |
 | **Portal** | `resolveGuardian()` reads `bigice_athlete` by `guardian_email` ILIKE. 0 rows, so no exposure today. |
-| **Migration state** | **Zero local versions match applied versions** (31 applied / 32 files). Cause: `apply_migration` stamps `to_char(current_timestamp,…)`. `supabase db push` **must not be run**. |
+| **Migration state** | **33 applied / 34 local files; exactly two versions match** — `20260812083829_record_classification` (M2) and `20260812122254_m3_payment_replay_integrity` (M3), both aligned deliberately. The other 32 do not. Cause: `apply_migration` stamps `to_char(current_timestamp,…)`. `supabase db push` **must not be run**. |
 | **Legacy data** | **Nothing migrated.** ~3,096 session rows, 209 athlete IDs across 23 `SOURCE_CANDIDATE` CSVs. No file is authoritative. |
 | **Metrics** | Registry v2: 27 VERIFIED / 2 INFERRED / 4 UNKNOWN / 1 DEPRECATED. **Not finalised** — 5 blockers. |
 | **Certificates** | `NRHL-COMP-v1` reproduces exactly, but is **structurally unsafe** (DQ-050). `nrhl_athlete` is empty, so nothing is issued from the system. Freeze recommended. |
@@ -71,8 +73,8 @@ repository, without any prior conversation.
 | **R4** | ID sequence at 504 collides with legacy `ATH-500`–`ATH-638` | CRITICAL | corpus max 638; issuer pads to 5 digits | contained only by not issuing | D-06 | **OPEN** |
 | **R15** | **Athlete code minted outside the insert transaction** | CRITICAL | `bigice-onboarding.ts:190` RPC then `:200` insert, two round-trips, no transaction. Seq +4, rows 0. | none | D-20 | **OPEN** |
 | ~~R13~~ | ~~`SGX7HQ2LM9` real-or-test undetermined~~ | — | **Owner checked the Safaricom statement 2026-08-12: receipt is ABSENT. It was the founder's own test.** | — | D-21 **CLOSED** | **RESOLVED — no customer impact** |
-| **R14** | **All 5** payment events are synthetic and permanent in an append-only table | HIGH | `AUDITTEST001-004` + `SGX7HQ2LM9`; 658,000 KES of fake settlements; DELETE blocked by trigger | none | D-22 | **OPEN — scope widened** |
-| **R16** | **`G-W6-PAY` gate is live on synthetic evidence** | **HIGH** | `gate_states`: `live=true`, `evidence='AUDITTEST001'`. It is the **root of the NRHL critical path** (`dependsOn: null`); `G-W5-REG` depends on it and `assertDraftEngineUnblocked()` hard-blocks on it. Its KPI — *"First validated M-Pesa settlement event"* — is recorded as met and has never occurred. `settle_payment_transaction` uses `on conflict (gate_id) do nothing`, so a **real** settlement will never overwrite the test evidence. | none | D-23 | **OPEN** |
+| **R14** | All 5 payment events are synthetic and permanent in an append-only table | **DOWNGRADED to LOW** | `AUDITTEST001-004` + `SGX7HQ2LM9`; KES 658,000 | **M2 applied 2026-08-12** — all 5 classified TEST; exclusion predicate documented. Rows remain (append-only) but are no longer indistinguishable. | D-22 **CLOSED** | **RESOLVED — both financial consumers migrated in 0.3C; revenue reads KES 0** |
+| ~~R16~~ | ~~`G-W6-PAY` live on synthetic evidence~~ | **RESOLVED** | Was `live=true, evidence='AUDITTEST001'` — root of the NRHL critical path, KPI recorded as met though no real settlement ever occurred. | **M3 applied 2026-08-12**: gate reset to `live=false, evidence=null`, and it now flips only on a PRODUCTION-classified settlement. Blast radius verified zero — `assertDraftEngineUnblocked()` has no callers and no app code reads `gate_states`. | D-23 **CLOSED** | **RESOLVED** |
 | **R5** | `supabase db push` would replay 32 migrations, halt on the 6th | HIGH | 0/32 version matches | standing prohibition | D-16 | **OPEN** |
 | **R6** | Migrating from a `SOURCE_CANDIDATE` file | HIGH | `2021.csv` 93 rows vs `2021(1).csv` 1,020 | migration blocked | D-04 | **OPEN** |
 | **R7** | `bigice_academy_name_parity` applied with no local file | HIGH | applied `20260811012454`, no source | none | D-16 | **OPEN** |
@@ -81,6 +83,9 @@ repository, without any prior conversation.
 | **R10** | Bare-name attribution (`eli` → Eli Das; Eli Araka exists) | HIGH | `nrhl-etl.ts` NAME_ALIASES | not run on production data | D-06 | **OPEN** |
 | **R11** | 3 derived formulas unreproducible | MEDIUM | compliance %, Speed/Power score, Session_Load | blocks Phase 9 | D-09/12/14 | **OPEN** |
 | **R12** | Phone-enumeration oracle via `link_guardian()` | MEDIUM | `ON CONFLICT … RETURNING parent_id` | none | DQ-048 | **OPEN** |
+| **R18** | `touch_user_profiles_updated_at()` is a **trigger** function callable by `anon` over REST RPC | LOW | advisor `anon_security_definer_function_executable`, observed 2026-08-12 after M2. Low impact — invoked outside a trigger context it errors on undefined `TG_OP`/`OLD` — but a trigger helper should not be in the exposed API surface at all. | none | new — needs an ID | **OPEN** |
+| **R19** | `jwt_athlete_ids()` / `jwt_tenant_ids()` executable by `authenticated` over REST RPC | LOW | advisor `authenticated_security_definer_function_executable`. They are RLS helpers; direct invocation leaks the caller's own scope only, so impact is minimal. | none | new — needs an ID | **OPEN** |
+| **R20** | Supabase Auth leaked-password protection disabled | LOW | advisor `auth_leaked_password_protection`. `/login` offers password auth alongside magic link. | none | new — needs an ID | **OPEN** |
 
 ---
 
@@ -109,11 +114,11 @@ repository, without any prior conversation.
 | D-17 | Exposure qualification retroactive? | OPEN |
 | D-18 | Minimum exposure thresholds | OPEN |
 | D-19 | Non-participant treatment | OPEN |
-| **D-20** | **Transactional athlete creation + ID issuance** (new, Phase 0.2) | OPEN |
+| **D-20** | **Transactional athlete creation + ID issuance** | **ANALYSED — M1 designed, awaiting approval.** Call graph complete: 5 consumers of one sequence; only the (unused) `athlytica_core.athletes` trigger is atomic. Existing-athlete reuse already correct; only the failure-before-insert path burns codes. |
 | **D-21** | ~~Is `SGX7HQ2LM9` a real customer payment?~~ | **CLOSED 2026-08-12 — NO. Absent from the Safaricom statement; founder's own test. All 5 payment events are synthetic.** |
-| **D-22** | **Test/production data classification mechanism** (new, Phase 0.2) | OPEN — now covers all 5 events |
-| **D-23** | **Correct `G-W6-PAY`, which is live on synthetic evidence** (new) | OPEN |
-| **OPS-1** | Approve billable Supabase branch for RLS testing | OPEN — **now the top blocker** |
+| **D-22** | **Test/production data classification** | **CLOSED 2026-08-12.** `record_classification` applied (`20260812083829`), 5 rows TEST. Database consumer `payment_events_production` (M3). **Application consumers migrated in 0.3C**: `dashboard` `railTotalKes` and `cash-watcher` now read the view — both went from KES 658,000 to KES 0. Guarded by `tests/payment-revenue-source.test.mts` (mutation-verified: the guard fails if either read reverts). |
+| **D-23** | **Payment replay integrity + gate evidence** | **APPROVED + APPLIED 2026-08-12 (M3, `20260812122254`).** Tested **19/19** in a rolled-back transaction before apply, including the critical regression (real callback vs stale synthetic → `RECONCILIATION_REQUIRED`, not `DUPLICATE`). Gate reset to `live=false`. `payment_events` untouched, still append-only. See `phase0/M3_TEST_RESULTS.md`. **Application consumers not yet switched — see blocker 3.** |
+| ~~OPS-1~~ | ~~Approve billable Supabase branch~~ | **CLOSED — not needed.** Org is on free (branching needs Pro). R1–R12 ran read-only at zero cost, and a branch would not have unblocked R4–R8 anyway (canonical tables don't exist). Owner chose local Docker; **not yet installed**. |
 
 ---
 
@@ -122,11 +127,11 @@ repository, without any prior conversation.
 What prevents Phase 1, in order of what unblocks the most:
 
 1. **D-04 — no authoritative source.** All 23 local CSVs are `SOURCE_CANDIDATE`. Four workbook tabs are missing locally, including `Certificate Tracker`. **Nothing may be migrated until a fresh 16-tab export exists.**
-2. **OPS-1 / D-01 — RLS untested.** No isolated environment exists. `list_branches` returns empty. Creating one is billable and **has not been done**. 0 of 12 RLS tests have run.
-3. **D-20 — ID issuance is not transactional.** Demonstrated: 4 codes burned, 0 athletes. Building canonical athletes on this pattern would produce orphans permanently.
-4. **D-21 — an unreconciled payment.** Cannot be resolved from the database; needs the M-Pesa statement.
-5. **D-16 — migration ledger drift.** No reproducible schema baseline.
-6. **D-11 — no DOB.** 19 verified metrics unscorable.
+2. **Docker not installed → no isolated environment.** R1–R12 are **done** (12/12 pass, executed read-only against production, Phase 0.2). What still needs a local stack: the `FORCE ROW LEVEL SECURITY` vs `SECURITY DEFINER` question, R11, R12, migration dry run (gate 18), rollback test (gate 17), and the D-20 fix verification. Phase 0.3 §4 was **stopped** for this reason.
+3. **D-20 — ID issuance is not transactional.** Root cause proven: `bigice-onboarding.ts:190` mints via RPC, `:200` inserts in a separate transaction. Correction (M1) designed, **not implemented**.
+4. **D-20 — ID issuance still not transactional.** M1 designed, not applied; needs an isolated environment. This is the last known live integrity defect.
+6. **D-16 — migration ledger drift.** No reproducible schema baseline.
+7. **D-11 — no DOB.** 19 verified metrics unscorable.
 
 **Migration gates: 1 of 20 complete, 1 partial, 18 open.**
 
@@ -159,13 +164,41 @@ Investigations already completed. Do not redo these without new evidence.
 
 ## NEXT ACTION
 
-> **Install Docker Desktop, then `npx supabase start` — to verify the one
-> genuinely unverified behaviour: does `FORCE ROW LEVEL SECURITY` break the
-> `SECURITY DEFINER` onboarding path?**
+> **Install Docker, then apply M1 — atomic athlete-ID issuance (D-20).**
 >
 > ```
 > winget install -e --id Docker.DockerDesktop
 > ```
+>
+> M1 is the last known live integrity defect: mint and insert are separate
+> transactions, so a failed insert burns a permanent identifier (proven —
+> sequence 500→504, zero athlete rows). Unlike M2/M3 it cannot be tested by a
+> rolled-back transaction alone, because the fix must be exercised through the
+> application's two-call path to prove the burn is gone.
+
+**M2 and M3 are both applied and verified.** M3 was tested 19/19 in a
+rolled-back transaction before apply — including the critical regression where a
+real callback arrives for a receipt already held by a stale synthetic record: it
+returns `RECONCILIATION_REQUIRED`, not `DUPLICATE`, and settles nothing.
+
+That test run caught a genuine bug before it reached production
+(`v_diff || 'literal'` raised `22P02 malformed array literal`, which would have
+thrown on the *first* conflicting replay). It is the clearest argument yet for
+keeping the test-before-apply discipline.
+
+What remains is the last mile of D-22: the classification has a **database**
+consumer (`payment_events_production`) but not yet an **application** one.
+
+Full CHANGE / WHY / RISK / ROLLBACK / IMPACT for M1, M2 and M3 is in
+`phase0/PHASE_0_3_PAYMENT_AND_ID_INTEGRITY.md` §7. Recommended order
+**M2 → M3 → M1**.
+
+Docker remains wanted but is no longer the top of the queue: M2 needs no
+isolated environment, while M1 and M3(c) do.
+
+```
+winget install -e --id Docker.DockerDesktop
+```
 
 R1–R12 are **done** — executed 2026-08-12 against production, read-only, 12/12
 pass, zero cost, no branch created. OPS-1 was resolved without spending anything:
@@ -205,3 +238,8 @@ environment decision.
 | **0** | Read-only audit. 4 documents. Canonical architecture, ID spec, metric registry v2, RLS matrix, decision register. | **none** |
 | **0.1** | Parallel-work reconciliation, migration reconciliation, DQ-050 counterfactual, scoring eligibility framework, authoritative-source spec, master status. | **none** |
 | **0.2** | `SGX7HQ2LM9` investigation, ID-issuer root cause, guardian fix verification, test run (142/142), test-data classification design. | **none** |
+| **0.2b** | R1–R12 executed read-only (12/12 pass). Advisor's "fully exposed" claim disproved; containment script rewritten to grant nothing. Docs committed `658936e`. | **none** |
+| **0.3** | D-20 call graph + atomicity proof; D-23 gate trace + case-C gap; D-22 classification design. M1/M2/M3 staged. §4 stopped (no Docker). | **none** |
+| **0.3-M2** | `record_classification` applied (`20260812083829`); 5 synthetic payments classified TEST. | **1 migration** |
+| **0.3C** | Financial consumers migrated to `payment_events_production`; 4 regression guards added (146/146). No migration. | **source only** |
+| **0.3B-M3** | Payment replay integrity applied (`20260812122254`): DUPLICATE vs RECONCILIATION_REQUIRED vs TEST_CLASSIFIED; reconciliation ledger; production-only view; gate reset to `live=false`. Tested 19/19 pre-apply. | **1 migration + 1 gate row** |

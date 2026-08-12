@@ -500,9 +500,16 @@ async function ttaData(db: Supabase) {
 // ---------------------------------------------------------------------
 async function hqData(db: Supabase) {
   const [payments, registrations, dlq, grants, telemetryQueue] = await Promise.all([
+    // payment_events_production, not payment_events: this feed drives
+    // railTotalKes, and revenue must never count a settlement classified
+    // TEST/AUDIT/DEMO in record_classification (D-22/D-23). The view is
+    // `select pe.*` over the same table, so the column list is unchanged.
+    // The two LIST reads elsewhere in this file deliberately keep the raw
+    // ledger — an operator looking at the rail should see everything that
+    // arrived, including test rows.
     safeRows(() =>
       db
-        .from("payment_events")
+        .from("payment_events_production")
         .select("id, amount_kes, result_code, account_reference, transaction_timestamp, created_at")
         .order("created_at", { ascending: false })
         .limit(500),

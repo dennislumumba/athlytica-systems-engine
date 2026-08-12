@@ -67,8 +67,13 @@ export async function GET(request: NextRequest) {
   const horizonStart = new Date(now.getTime() - HORIZON_DAYS * 86_400_000).toISOString();
   const runRateStart = new Date(now.getTime() - RUN_RATE_BASIS_DAYS * 86_400_000);
 
+  // payment_events_production, not payment_events: every figure this route
+  // emits is money (gross collected, run rate, average ticket), so a
+  // settlement classified TEST/AUDIT/DEMO in record_classification must not
+  // reach it (D-22/D-23). The view is `select pe.*` over the same table —
+  // identical columns, identical filters, only the excluded rows differ.
   const { data, error } = await supabase
-    .from("payment_events")
+    .from("payment_events_production")
     .select("amount_kes, transaction_timestamp")
     .gte("transaction_timestamp", horizonStart)
     .order("transaction_timestamp", { ascending: false })
@@ -80,8 +85,9 @@ export async function GET(request: NextRequest) {
         {
           status: "SCHEMA_DEBT",
           error:
-            "payment_events does not exist in the deployed database. Apply migration " +
-            "supabase/migrations/20260712190000_payment_and_funnel_events.sql — do not patch around it.",
+            "payment_events_production does not exist in the deployed database. Apply migration " +
+            "supabase/migrations/20260812122254_m3_payment_replay_integrity.sql — do not patch around it " +
+            "by reading payment_events directly, which would put TEST/AUDIT/DEMO settlements back into revenue.",
         },
         { status: 503 },
       );

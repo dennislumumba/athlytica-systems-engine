@@ -4,8 +4,17 @@
 **Date:** 2026-08-12
 **Status key:** `OPEN` · `APPROVED` · `REJECTED` · `SUPERSEDED`
 
-No decision below has been made. Nothing has been implemented on the assumption
-that any of them will go a particular way.
+**Status as of Phase 0.3C:** four decisions are closed — **D-21, D-22, D-23,
+OPS-1** (see the post-Phase-0 section at the end). Every decision in the
+numbered list below remains **OPEN**, and nothing has been implemented on the
+assumption that any of them will go a particular way.
+
+⚠ **D-01's premise below is now known to be wrong.** It was written from the
+Supabase advisor's `rls_disabled` message. R1–R12 were executed on 2026-08-12
+and found `anon`, `authenticated` **and** `service_role` are all denied at the
+schema level on `athlytica_core` — the "fully exposed to the anon key" claim is
+false for this project. The decision is retained verbatim for provenance; read
+`RLS_TEST_RESULTS.md` before acting on it.
 
 ---
 
@@ -426,3 +435,31 @@ Migration may not begin until all eleven are approved:
 - [ ] `Foundational Skating` treatment — **D-03**
 - [ ] NRHL scoring formula — `NRHL-PTS-v1` and `NRHL-COMP-v1` (D-13, DQ-050)
 - [ ] Duplicate / test-data handling — test rows, `Kids Group`, Class 3 duplicates (D-08)
+
+---
+
+# Decisions added after Phase 0 (0.1 → 0.3C)
+
+D-01…D-15 above were raised during the Phase 0 audit. The following were raised
+in later phases and are recorded here so the register stays the single index.
+Live status is always in [`docs/ATHLYTICA_PROJECT_STATE.md`](../ATHLYTICA_PROJECT_STATE.md).
+
+| ID | Decision | Status |
+|---|---|---|
+| D-16 | Migration version drift remediation (0 of 32 local versions matched applied) | **OPEN.** Two files now align deliberately — `20260812083829_record_classification`, `20260812122254_m3_payment_replay_integrity`. Pattern proven; the other 32 remain. `supabase db push` must not be run. |
+| D-17 | Is exposure qualification retroactive for `NRHL-COMP-v2`? | OPEN |
+| D-18 | Minimum exposure thresholds for scoring eligibility | OPEN |
+| D-19 | Non-participant treatment in composites | OPEN |
+| D-20 | Transactional athlete creation + ID issuance | **OPEN — M1 designed, not applied.** Mint and insert are separate round-trips (`bigice-onboarding.ts:190` → `:200`); a failed insert burns a permanent identifier. Proven: sequence 500→504, zero athlete rows. Needs an isolated environment to verify. |
+| D-21 | Is `SGX7HQ2LM9` a real customer payment? | **CLOSED 2026-08-12 — NO.** Owner checked the Safaricom statement; the receipt is absent. All five `payment_events` are synthetic; production has never processed a real payment. |
+| D-22 | Test / production record classification | **CLOSED 2026-08-12.** `record_classification` applied (`20260812083829`), 5 rows classified TEST. Database consumer `payment_events_production` added by M3. **Application consumers migrated in Phase 0.3C** — `dashboard` `railTotalKes` and `cash-watcher` now read the view. Guarded by `tests/payment-revenue-source.test.mts`. |
+| D-23 | Payment replay integrity + `G-W6-PAY` evidence | **CLOSED 2026-08-12.** M3 applied (`20260812122254`), tested 19/19 pre-apply including the critical regression. Duplicate ≠ conflicting replay: identical immutable attributes → idempotent `DUPLICATE`; any difference → `RECONCILIATION_REQUIRED` with evidence preserved and nothing settled. Gate reset to `live=false`. |
+| OPS-1 | Billable Supabase branch for RLS testing | **CLOSED — not needed.** Org is on the free plan; R1–R12 ran read-only at zero cost, and a branch would not have unblocked R4–R8 (canonical tables don't exist). Owner chose local Docker; not yet installed. |
+
+## Decisions closed to date
+
+**D-21, D-22, D-23, OPS-1.** Everything else in this register remains open.
+
+**Nothing in the migration approval checklist above has been ticked.** The
+closed decisions are containment work on the *live* system; none of them
+unblocks legacy migration, which is still gated on D-04.
