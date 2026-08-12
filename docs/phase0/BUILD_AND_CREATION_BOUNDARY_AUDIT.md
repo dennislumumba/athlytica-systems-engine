@@ -1,3 +1,9 @@
+> **UPDATED BY PHASE 0.3H.** The Google Forms column below described a
+> live door. It was **retired on 2026-08-12** (D-26c) and now answers
+> `410 CHANNEL_RETIRED`, creating nothing. The analysis is retained as the
+> evidence that justified retiring it. **Live creation doors are now four,
+> not five** — see `GOOGLE_FORMS_ENROLLMENT_POLICY.md` §13.5.
+
 # Phase 0.3F — Build Integrity + Non-Payment Athlete-Creation Boundary
 
 **Date:** 2026-08-12 · **Follows:** 0.3D (path audit) and 0.3E (payment authorization boundary)
@@ -104,7 +110,7 @@ Three doors create athlete records without a payment check.
 | **11. Bypass venture isolation?** | no — writes NRHL tables only | n/a — it has no venture | no |
 | **12. Can a parent invoke it?** | **no** | **no** | **no** |
 | **13. Intended use** | legacy corpus backfill (10 scrimmages, 31 athletes) | Google Forms intake → cohort scheduling | superseded identity plane |
-| **Classification** | **B — TRUSTED DATA IMPORT** | **G — UNCERTAIN, REQUIRES OWNER DECISION** | **E — UNUSED / DEPRECATED** |
+| **Classification** | **B — TRUSTED DATA IMPORT** | ~~G — UNCERTAIN~~ → **RETIRED 0.3H (D-26c)** | **E — UNUSED / DEPRECATED** |
 
 ### Why the trigger is E and not F
 
@@ -143,7 +149,7 @@ identifier. Three SQL functions read it; three application sites call them.
 | `retry-onboarding` → `onboardBigIceAthlete` | yes | **yes** — BIIF | ops token **+ `payment_service_authorization`** | BIG_ICE | recovery of a failed paid onboarding |
 | `onboard-paid-athlete` | yes | **yes** — `nrhl_next_athlete_code` (`ATH-`) | HMAC **+ `payment_service_authorization`** | NRHL | paid onboarding |
 | `nrhl/ingest` | yes | **yes** — `ATH-` | founder / head coach | NRHL | **legacy import — no payment by design** |
-| `google-forms` | yes (passport) | **no** | HMAC | none | form intake |
+| ~~`google-forms`~~ | **no — retired 0.3H** | no | n/a (410) | none | ~~form intake~~ |
 | `athlytica_core` trigger | — | unreachable | none | none | unused |
 | `normalize-legacy-ids.js` | — | mints `ATH-YYYY-NNNN` | script, not deployed | — | **frozen — D-05** |
 
@@ -287,7 +293,7 @@ Checked against every externally reachable athlete-creating route:
 | `retry-onboarding` | no — ops token, **and** M4 authorization |
 | `onboard-paid-athlete` | no — HMAC, **and** M4 authorization |
 | `nrhl/ingest` | no — NRHL founder/head-coach grant |
-| `google-forms` | no — HMAC, verified before any parsing or DB work |
+| ~~`google-forms`~~ | **n/a — retired 0.3H.** Creates nothing at all; answers `410`. (Was: no — HMAC verified before any parsing or DB work.) |
 | `athlytica_core` trigger | no — unreachable at the schema level |
 
 **Every externally reachable athlete-creation path is either

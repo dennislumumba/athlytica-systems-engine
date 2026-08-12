@@ -1,3 +1,20 @@
+> ## ⛔ SUPERSEDED IN PART BY PHASE 0.3H — THE CHANNEL IS RETIRED
+>
+> The owner confirmed Google Forms is no longer used, closing **D-26c**.
+> `/api/v1/onboarding/google-forms` was retired on 2026-08-12 and now
+> answers `410 CHANNEL_RETIRED`, creating nothing.
+>
+> **Google Forms is not a supported athlete onboarding channel.**
+>
+> §5's `enrollment_basis` design was **not implemented** — its only
+> identified use case was this channel, and the channel is gone. §6's
+> "recommended future flow" describes a future that will not happen.
+> Everything else — the seven-record investigation (§0–§4), the payment
+> boundary (§7), the portal analysis (§8) and the disposition (§9) — still
+> stands and is the record of why retirement was the right answer.
+>
+> Retirement detail: §13 below.
+
 # Phase 0.3G — Google Forms Enrollment Policy (D-26)
 
 **Date:** 2026-08-12 · **Follows:** 0.3F (`BUILD_AND_CREATION_BOUNDARY_AUDIT.md`)
@@ -395,3 +412,92 @@ Four new, all on the Google-Forms-to-entitlement boundary:
 **D-26c is the interesting one.** Every finding in this phase is about a
 path with no users. The cheapest resolution to a door nobody walks through
 is to close it.
+
+---
+
+# 13. Phase 0.3H — Retirement (D-26c CLOSED)
+
+**Date:** 2026-08-12 · **Production changes: none.** No migration, no schema
+change, no data write.
+
+## 13.1 What was retired
+
+`app/api/v1/onboarding/google-forms/route.ts` — replaced with a
+deterministic `410 CHANNEL_RETIRED`. It now builds **no database client**,
+reads **no request body**, and calls **no RPC**. There is nothing to
+authenticate because there are no side effects.
+
+410 rather than 404, and rather than deleting the file: the Apps Script
+trigger still runs in the owner's Google account and will keep POSTing. A
+404 reads like a deploy fault; a 410 says the channel is permanently gone
+and names `/register` as its replacement.
+
+## 13.2 Proof there were no legitimate callers
+
+| Question | Evidence |
+|---|---|
+| Any other function/view/trigger referencing it? | **No** — only `onboard_athlete_from_google_form` itself |
+| FKs into `google_form_submission_log`? | **0** |
+| Scheduled jobs? | **No** — `pg_cron` not installed |
+| Database webhooks? | **No** — `pg_net` not installed |
+| RPC reachable by a client role? | **No** — `anon`/`authenticated` denied; `service_role` only |
+| Frontend references? | **0** |
+| Real submissions ever? | **0** — all 7 synthetic |
+| In-repo callers | `scripts/test-form-ingestion.js` (removed) and the external Apps Script |
+
+## 13.3 What was deliberately NOT removed
+
+| Kept | Why |
+|---|---|
+| `GOOGLE_FORMS_WEBHOOK_SECRET` | **Shared with `app/api/v1/sync/convex/route.ts`.** Despite the name it is not Google-Forms-exclusive; removing it as "dead config" would have sealed the live Convex bridge. A guard test now pins this so the next person to tidy up finds out in CI. |
+| `public.onboard_athlete_from_google_form` | Orphaned but preserved. It and the log table are the only way to read and explain the seven historical rows. Dropping them would delete audit capability, which Part G forbids. `service_role`-only, now caller-less; a guard asserts no source file calls it. |
+| `public.google_form_submission_log`, `cohort_session_registry`, `provenance`, `athlete` rows | Historical evidence. Nothing deleted. |
+| `apps-script/onboarding_google_form_webhook.gs` | The record of what is deployed in the owner's Google account — needed in order to disable it (**D-27**). |
+| `provenance` infrastructure | Generic, not Google-Forms-specific. |
+
+## 13.4 Removed
+
+| File | Why |
+|---|---|
+| `scripts/test-form-ingestion.js` | Drove the retired endpoint exclusively. Would now just POST into a 410. |
+| `tests/google-forms-enrollment-policy.test.mts` | Guarded the live path's boundaries. Superseded by `tests/google-forms-retired.test.mts`, which asserts the absence of the capability rather than its limits. |
+
+## 13.5 Creation doors after retirement
+
+| Door | Type | Trusted? | Payment required? | Creates identity? | M1 caller? |
+|---|---|---|---|---|---|
+| `mpesa-callback` → Big Ice onboarding | paid | callback secret / ops token | **yes — M4** | yes (BIIF) | **yes** |
+| `retry-onboarding` → Big Ice onboarding | paid recovery | ops token | **yes — M4** | yes (BIIF) | **yes** |
+| `onboard-paid-athlete` | paid | HMAC | **yes — M4** | yes (`ATH-`) | **yes** |
+| `nrhl/ingest` | trusted import | founder / head coach | **no, by design** | yes (`ATH-`) | **yes** |
+| `athlytica_core` trigger | unused | unreachable (no schema USAGE) | n/a | n/a | no |
+| ~~`google-forms`~~ | **retired** | — | — | **no** | **no** |
+
+**Four live doors, down from five.** Three are payment-authorized; one is a
+grant-gated import that must keep working without payment. No new door was
+created, and no public or untrusted surface can mint a permanent identity.
+
+## 13.6 `enrollment_basis` — not implemented, and now unlikely to be
+
+§5 designed one column to record *why* an athlete is enrolled. Its only
+identified use case was distinguishing an unpaid Google Forms enrollment
+from a paid one. **That channel no longer exists**, so the column has no
+caller and is not being built.
+
+It should be revisited only if a genuine non-paid enrollment channel
+appears — an administrator enrolling a scholarship athlete, say. Until
+then, `cohort_session_registry` holds seven synthetic rows and takes no
+new writes from any live path.
+
+## 13.7 Verification
+
+| Check | Result |
+|---|---|
+| Application tests | 178 → **178 pass / 0 fail** |
+| Mutation tests | 15 → **21 / 21 caught** (6 new, all on retirement guards) |
+| Typecheck | **clean** |
+| `next build` | **✓ Compiled successfully**; `/api/v1/onboarding/google-forms` still resolves |
+| Database rows | unchanged: 7 log, 7 cohort, 13 athlete, 12 provenance, 5 classifications, 5 ledger |
+| Sequence | **504 — unmoved** |
+| Migrations | **34 — unchanged** |
+| RPC preserved | yes |

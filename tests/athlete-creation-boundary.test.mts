@@ -27,10 +27,18 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const INGEST = "app/api/v1/leagues/nrhl/ingest/route.ts";
-const GFORMS = "app/api/v1/onboarding/google-forms/route.ts";
 
-/** Doors that create athlete records WITHOUT a payment check, by design. */
-const NON_PAYMENT_DOORS = [INGEST, GFORMS];
+/**
+ * Doors that create athlete records WITHOUT a payment check, by design.
+ *
+ * Was [INGEST, GFORMS]. The Google Forms door was retired in Phase 0.3H
+ * (D-26c) and is no longer a creation door at all — its guards live in
+ * tests/google-forms-retired.test.mts, which asserts the absence of the
+ * capability rather than its boundaries.
+ *
+ * NRHL legacy import is now the ONLY non-payment athlete-creation door.
+ */
+const NON_PAYMENT_DOORS = [INGEST];
 
 /** Tables that represent money already paid. No non-payment door may write them. */
 const PAID_ARTEFACT_TABLES = [
@@ -42,6 +50,16 @@ const PAID_ARTEFACT_TABLES = [
 ];
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+
+/**
+ * Source with comments stripped. These files document themselves heavily
+ * and several deliberately NAME the things they no longer do, so a guard
+ * that greps raw text reports the prose as a violation.
+ */
+const code = (p: string) =>
+  read(p)
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
 
 const writeTargets = (src: string) =>
   [...src.matchAll(/\.from\("([^"]+)"\)\s*\.(?:insert|upsert|update|delete)/g)].map((m) => m[1]!);
@@ -67,27 +85,35 @@ test("NRHL ingest is gated to founder/head-coach before it reads a body", () => 
   assert.ok(mint > gate, "authorization must run before any athlete code is minted");
 });
 
-test("Google Forms onboarding verifies its HMAC before any database work", () => {
-  const src = read(GFORMS);
+test("the athlete-creation door census is closed and complete", () => {
+  // Every file in the repository that can create an athlete row. If a new
+  // one appears it must be reviewed against the payment boundary (M4) and
+  // the ID-issuance boundary (M1) before it ships — this test is the
+  // tripwire, and it is the reason the census can be trusted at all.
+  //
+  // Google Forms was removed from this list in 0.3H. It is not "a door
+  // that is currently closed"; it is not a door.
+  const CREATION_DOORS = [
+    "app/api/v1/biz/mpesa-callback/route.ts", // paid, Big Ice + NRHL packs
+    "app/api/v1/biz/retry-onboarding/route.ts", // paid, recovery
+    "app/api/v1/workspaces/nrhl/onboard-paid-athlete/route.ts", // paid, NRHL
+    INGEST, // trusted import, no payment by design
+  ];
 
-  // Fail closed: an unset secret must refuse, never skip the check.
-  assert.match(
-    src,
-    /if \(!secret \|\| !supabaseUrl \|\| !serviceRoleKey\) \{/,
-    "an unprovisioned secret must seal the route",
-  );
-  assert.match(
-    src,
-    /if \(!signatureHeader \|\| !timingSafeEqualHex\(/,
-    "a missing or wrong signature must be rejected",
-  );
+  const ATHLETE_TABLES = ["bigice_athlete", "nrhl_athlete", "athlete"];
+  const found: string[] = [];
+  for (const f of [...CREATION_DOORS, "app/api/v1/onboarding/google-forms/route.ts"]) {
+    const src = code(f);
+    const writes = writeTargets(src);
+    const viaService = /onboardBigIceAthlete\(|\.rpc\("onboard_athlete_from_google_form"/.test(src);
+    if (writes.some((t) => ATHLETE_TABLES.includes(t)) || viaService) found.push(f);
+  }
 
-  const sig = src.indexOf("timingSafeEqualHex(signatureHeader");
-  const parse = src.indexOf("JSON.parse(rawBody)");
-  const client = src.indexOf("createClient(supabaseUrl");
-  assert.ok(sig > 0, "the route must verify a signature");
-  assert.ok(parse > sig, "JSON must not be parsed before the signature is verified");
-  assert.ok(client > sig, "no Supabase client may be built before the signature is verified");
+  assert.deepEqual(
+    found.sort(),
+    CREATION_DOORS.slice().sort(),
+    "the set of athlete-creating routes changed — review any new door against M4 and M1",
+  );
 });
 
 test("no non-payment door writes a paid artefact", () => {
@@ -124,19 +150,38 @@ test("no non-payment door touches the settlement or authorization machinery", ()
   }
 });
 
-test("Google Forms onboarding cannot issue a public ATH-XXXXXX identifier", () => {
-  const src = read(GFORMS);
-  const rpcs = [...src.matchAll(/\.rpc\("([^"]+)"/g)].map((m) => m[1]!);
+test("no untrusted or retired surface can mint a permanent athlete identity", () => {
+  // The sequence behind ATH-XXXXX is the one irreversible resource in the
+  // system: a burned code is gone (R15/D-20) and a colliding one corrupts
+  // legacy history (R4). Only these three files may draw from it, and each
+  // is either payment-authorized or grant-gated.
+  const ISSUERS = [
+    "lib/services/bigice-onboarding.ts",
+    "app/api/v1/workspaces/nrhl/onboard-paid-athlete/route.ts",
+    INGEST,
+  ];
+  const NON_ISSUERS = [
+    "app/api/v1/onboarding/google-forms/route.ts", // retired
+    "app/api/v1/sync/convex/route.ts",
+    "app/api/v1/portal/route.ts",
+    "app/api/v1/biz/check-status/route.ts",
+    "app/api/v1/auth/register/route.ts",
+    "app/api/v1/biz/stk-push/route.ts",
+  ];
 
-  // It creates a passport-plane athlete keyed by gen_random_uuid() inside
-  // onboard_athlete_from_google_form. It never draws from
-  // athlytica_core.scalable_id_sequence, so it cannot collide with the
-  // legacy ATH-500..638 block (R4) and is not an M1 caller.
-  assert.deepEqual(rpcs, ["onboard_athlete_from_google_form"], "one RPC, and it is not an issuer");
-  assert.ok(
-    !/next_athlete_code/.test(src),
-    "the Google Forms path must not mint a public athlete code",
-  );
+  for (const f of ISSUERS) {
+    assert.match(
+      read(f),
+      /\.rpc\("(?:nrhl|bigice)_next_athlete_code"\)/,
+      `${f} is a known issuer; if it stopped minting, re-verify the census`,
+    );
+  }
+  for (const f of NON_ISSUERS) {
+    assert.ok(
+      !/next_athlete_code|scalable_id_sequence/.test(read(f)),
+      `${f} must never mint a permanent athlete identifier`,
+    );
+  }
 });
 
 test("Big Ice onboarding refuses anything that is not a Big Ice registration", () => {

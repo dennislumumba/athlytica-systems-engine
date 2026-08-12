@@ -11,22 +11,22 @@ repository, without any prior conversation.
 
 | | |
 |---|---|
-| **Timestamp** | 2026-08-12 (Phase 0.3G) |
-| **Commit** | `67b2cef` (0.3D + 0.3E + 0.3F). **Not pushed.** 0.3G is uncommitted in the tree — docs and tests only. |
+| **Timestamp** | 2026-08-12 (Phase 0.3H) |
+| **Commit** | `origin/main` = `f7f451a` — **0.3D + 0.3E + 0.3F are pushed** (pushed between phases, not by this session). `0f4a20a` (0.3G) and the 0.3H commit are **local only**. |
 | **Working tree** | clean. |
 | **Supabase project** | `qxfrypvevjsyzkquewxh` |
 | **Applied migrations** | **34** — M2 `20260812083829_record_classification`, M3 `20260812122254_m3_payment_replay_integrity`, **M4 `20260812172530_m4_payment_authorization_boundary`** |
 | **Local migration files** | **35** — the three newest (M2, M3, M4) are the **only** files whose names match their applied versions (D-16 pattern) |
 | **Test suite** | `node --test "tests/**/*.test.mts"` → **178 pass / 0 fail** |
-| **Typecheck** | `npx tsc --noEmit` → **clean** (0.3F repaired `app/api/v1/performance/route.ts`) |
-| **Mutation coverage** | **15 / 15 caught** — every externally reachable athlete-creation route, plus the Google-Forms-to-paid-entitlement boundary |
+| **Typecheck** | **clean** · `next build` **✓ compiled successfully** (0.3H) |
+| **Mutation coverage** | **21 / 21 caught** — every live athlete-creation door, plus the Google Forms retirement guards |
 
 ### Row counts (read-only verification)
 
 | Table | Rows |
 |---|---|
 | `public.athlete` | 13 — **7 synthetic Google Forms submissions** (one name, `test-` prefixed ids, 68-min window 2026-07-09) + 6 TTA demo seed |
-| `cohort_session_registry` | 7 — all `enrolled`, all from those synthetic submissions. **No real Google Forms submission has ever occurred.** |
+| `cohort_session_registry` | 7 — all `enrolled`, all from those synthetic submissions. **No real Google Forms submission has ever occurred**, and the channel was **retired in 0.3H**, so this table takes no new writes from any live path. |
 | `public.athletes` | 6 |
 | `athlytica_core.athletes` | **0** |
 | `athlytica_core.parents` | **0** |
@@ -56,7 +56,7 @@ repository, without any prior conversation.
 | **Payments** | **Replay integrity live (M3).** Duplicate = all immutable attrs equal → idempotent no-op. Any attr differs → `RECONCILIATION_REQUIRED`, evidence preserved in `payment_reconciliation_exception`, nothing settled, stored event never modified. Pre-classified TEST receipts return `TEST_CLASSIFIED` and cannot flip the gate or settle. 5 `payment_events`, all `SETTLED_UNMATCHED` — **none matches any registration**. **All five are classified TEST** in `record_classification` (M2, applied 2026-08-12): PRODUCTION revenue reads KES 0.00. **All five are synthetic** (`AUDITTEST001-004` + `SGX7HQ2LM9`, the last confirmed absent from the Safaricom statement by the owner, 2026-08-12). **Production has never processed a real payment.** Table remains append-only by trigger — the 5 rows were classified, never modified. |
 | **Registration** | **2 rows, one household, two ventures.** `ATH-9YWQ` (NRHL `combine_27500`, 27,500, STK 2026-08-11 19:10) and `ATH-WKTR` (BIG_ICE academy, 180,000, arrived 2026-08-12 13:38). Both `PENDING_PAYMENT`, athlete "Adonis". This is the live F-5 case: before M4 a payment from that phone matching neither amount would have settled whichever was pushed most recently, regardless of venture. Under M4 it is `RECONCILIATION_REQUIRED`. |
 | **Guardian** | `likeEscape` authorization fix **committed to `main`** (`0441e0c`). Unit-tested. **Not integration-tested against a database.** |
-| **Onboarding** | Big Ice path live (`lib/services/bigice-onboarding.ts`). NRHL path live (`app/api/v1/workspaces/nrhl/onboard-paid-athlete`). **Both mint an athlete code outside the insert transaction** — see R15. |
+| **Onboarding** | Big Ice path live (`lib/services/bigice-onboarding.ts`). NRHL path live (`app/api/v1/workspaces/nrhl/onboard-paid-athlete`). **Both mint an athlete code outside the insert transaction** — see R15. **Google Forms retired 0.3H** — `/api/v1/onboarding/google-forms` answers `410 CHANNEL_RETIRED` and creates nothing. **Four live athlete-creation doors, down from five**: three payment-authorized (Big Ice callback, retry, NRHL webhook) + one grant-gated import (`nrhl/ingest`). |
 | **Portal** | `resolveGuardian()` reads `bigice_athlete` by `guardian_email` ILIKE. 0 rows, so no exposure today. |
 | **Migration state** | **34 applied / 35 local files; exactly three versions match** — M2 `20260812083829`, M3 `20260812122254`, M4 `20260812172530`, all aligned deliberately. The other 32 do not. Cause: `apply_migration` stamps `to_char(current_timestamp,…)` — **M4 hit this trap during 0.3E** (written as `…164500`, applied as `…172530`) and the local files were renamed to match. `supabase db push` **must not be run**. |
 | **Legacy data** | **Nothing migrated.** ~3,096 session rows, 209 athlete IDs across 23 `SOURCE_CANDIDATE` CSVs. No file is authoritative. |
@@ -169,22 +169,22 @@ Investigations already completed. Do not redo these without new evidence.
 
 ## NEXT ACTION
 
-> **Answer D-26c: is the Google Forms channel still used at all?**
+> **Push `0f4a20a` (0.3G) and the 0.3H retirement commit.**
 >
-> D-26 is closed — it is UNPAID / ADMINISTRATIVE intake, and the seven
-> records that raised it were synthetic, not customers. What 0.3G surfaced
-> instead is that **the path has never processed a real submission**, and
-> intake now runs through `/register`.
+> `origin/main` is at `f7f451a`, so 0.3D–0.3F — including the M4
+> application code that calls the payment authorization boundary — are
+> already on the deploy branch. Two commits are still local, and one of
+> them is the Google Forms retirement.
 >
-> Every remaining Google Forms finding concerns a door nobody walks
-> through. If it is dead, retiring it removes the door outright — strictly
-> better than guarding it, and it deletes `enrollment_basis` from the
-> backlog along with it. If it is live, `enrollment_basis` should be built
-> before the first real submission, not after.
+> **Until it is pushed, `/api/v1/onboarding/google-forms` is still live in
+> production and still creates athletes.** It is HMAC-gated and has never
+> had a real caller, so this is not urgent — but the retirement is not
+> real until it deploys, and this document should not be read as saying
+> the door is shut when it is only shut locally.
 >
-> Two one-command items also await a yes/no: **D-26a** (classify the seven
-> synthetic records — verified, additive, reversible) and **D-26b** (the 6
-> TTA demo athletes). See `phase0/GOOGLE_FORMS_ENROLLMENT_POLICY.md`.
+> Also awaiting a yes/no, each one command: **D-26a** (classify the seven
+> synthetic records), **D-26b** (the 6 TTA demo athletes), **D-27**
+> (disable the Apps Script trigger in Google).
 
 Also open from 0.3F: **D-25** — a second M-Pesa STK client, using six env
 vars that do not exist here and pushing a client-supplied amount, was
@@ -280,6 +280,7 @@ environment decision.
 | **0.3C** | Financial consumers migrated to `payment_events_production`; 4 regression guards added (146/146). No migration. | **source only** |
 | **0.3B-M3** | Payment replay integrity applied (`20260812122254`): DUPLICATE vs RECONCILIATION_REQUIRED vs TEST_CLASSIFIED; reconciliation ledger; production-only view; gate reset to `live=false`. Tested 19/19 pre-apply. | **1 migration + 1 gate row** |
 | **0.3D** | Payment-adjacent path audit: 18 paths traced. Found F-1…F-5, three CRITICAL. Established that classification governed revenue and nothing else. 3 guard tests added (149/149). | **none** |
+| **0.3H** | **Google Forms retired** (D-26c). Route → `410 CHANNEL_RETIRED`: no DB client, no body read, creates nothing. Application-only — **no migration**. RPC + log table + shared secret deliberately kept (secret is shared with `sync/convex`; RPC is the only way to read the 7 historical rows). `scripts/test-form-ingestion.js` and the superseded policy test removed. 4 live creation doors, down from 5. 178/178, 21/21 mutations, `next build` ✓. | **none** |
 | **0.3G** | D-26 closed: Google Forms = **UNPAID / ADMINISTRATIVE**. The 7 "unpaid enrollments" proved to be **synthetic** — one athlete name, `test-` prefixed submission ids, 68-minute window. The path has **never taken a real submission**. F-7 downgraded MEDIUM → LOW (architecture defect, not data defect). `enrollment_basis` designed, deliberately **not built** (no real workflow to model). 7 guards, 178/178, 15/15 mutations. Classification SQL verified in a rolled-back transaction, **not applied**. | **none** |
 | **0.3F** | Build repaired (`performance/route.ts` reverted — concurrent corruption, D-25). Non-payment athlete-creation doors audited: `nrhl/ingest` = TRUSTED IMPORT, `google-forms` = **UNCERTAIN (D-26)**, `athlytica_core` trigger = UNUSED (latent grant, unreachable). ID-issuance census closed at 3 sites. 7 new guards, 171/171, 11/11 mutations. | **none** |
 | **0.3E** | **M4 payment authorization boundary applied** (`20260812172530`). One rule — `payment_service_authorization` — consumed by callback, retry-onboarding and NRHL onboarding. Venture-constrained matching; gate moved below matching and its `ON CONFLICT` repaired. F-1…F-5 all fixed. Tested 29/29 pre-apply, 164/164 app, 6/6 mutations caught. | **1 migration + 3 routes + 1 service** |
