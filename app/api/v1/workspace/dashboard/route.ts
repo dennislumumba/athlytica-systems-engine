@@ -20,6 +20,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import {
+  canOpenVentureDashboard,
   isWorkspaceId,
   isWorkspaceRole,
   TTA_TENANT_ID,
@@ -826,6 +827,20 @@ export async function GET(request: NextRequest) {
   if (!role) {
     return NextResponse.json(
       { success: false, error: `No role granted in ${WORKSPACES[requested].label}.` },
+      { status: 403 },
+    );
+  }
+  // A grant is not automatically a key to THIS payload. Everything below
+  // returns a venture's entire ledger — payment_events, registrations,
+  // revenue, the permission matrix — because role filtering happens
+  // client-side at render. SALES_OPS holds a grant so the founder can
+  // manage it in the same matrix, but its surface is the CRM alone.
+  if (!canOpenVentureDashboard(role)) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `${role} does not open the ${WORKSPACES[requested].label} dashboard. Use the revenue pipeline at /dashboard/crm.`,
+      },
       { status: 403 },
     );
   }

@@ -27,6 +27,7 @@ import { useRouter } from "next/navigation";
 import { supabaseClient } from "@/utils/supabaseClient";
 import {
   WORKSPACE_IDS,
+  canOpenVentureDashboard,
   isWorkspaceId,
   type Perspective,
   type WorkspaceId,
@@ -130,8 +131,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     router.replace(`/login?redirectTo=${encodeURIComponent(here)}`);
   }, [ready, token, router]);
 
+  // Holding a grant is not the same as being able to open the venture
+  // payload: SALES_OPS is granted in athlytica_hq so the founder manages
+  // it in the one permission matrix, but the workspace route refuses it
+  // (canOpenVentureDashboard). Filtering here keeps the switcher honest —
+  // otherwise the shell would offer a workspace that answers 403.
   const available = useMemo(
-    () => (actor ? WORKSPACE_IDS.filter((id) => actor.roles[id]) : []),
+    () =>
+      actor
+        ? WORKSPACE_IDS.filter((id) => {
+            const granted = actor.roles[id];
+            return Boolean(granted && canOpenVentureDashboard(granted));
+          })
+        : [],
     [actor],
   );
 

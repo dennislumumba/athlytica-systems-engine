@@ -80,8 +80,34 @@ export function workspaceFromSlug(slug: unknown): WorkspaceId | null {
   return typeof slug === "string" ? (BY_SLUG.get(slug.toLowerCase()) ?? null) : null;
 }
 
-export const WORKSPACE_ROLES = ["GLOBAL_FOUNDER", "HEAD_COACH", "ATHLETE"] as const;
+export const WORKSPACE_ROLES = [
+  "GLOBAL_FOUNDER",
+  "HEAD_COACH",
+  "ATHLETE",
+  "SALES_OPS",
+] as const;
 export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];
+
+/**
+ * Roles that may open a venture's dashboard payload.
+ *
+ * SALES_OPS is deliberately absent. That payload is all-or-nothing —
+ * /api/v1/workspace/dashboard returns payment_events, the registration
+ * ledger and the permission matrix to anyone holding a grant, with role
+ * filtering applied client-side at render. A sales grant is meant to
+ * open the CRM and nothing else, so the workspace route refuses it
+ * server-side rather than relying on panels being hidden.
+ */
+export const VENTURE_DASHBOARD_ROLES = ["GLOBAL_FOUNDER", "HEAD_COACH", "ATHLETE"] as const;
+
+/** Roles that may read and write the CRM (app/api/v1/crm). */
+export const CRM_ROLES = ["GLOBAL_FOUNDER", "SALES_OPS"] as const;
+
+export const canOpenVentureDashboard = (role: WorkspaceRole): boolean =>
+  (VENTURE_DASHBOARD_ROLES as readonly string[]).includes(role);
+
+export const canOpenCrm = (role: WorkspaceRole): boolean =>
+  (CRM_ROLES as readonly string[]).includes(role);
 
 /** Founder-only lens switch: financial/admin surfaces vs tactical ones. */
 export type Perspective = "executive" | "coach";
@@ -101,6 +127,9 @@ export function isWorkspaceRole(value: unknown): value is WorkspaceRole {
 export function canSee(role: WorkspaceRole, group: PanelGroup): boolean {
   if (role === "GLOBAL_FOUNDER") return true;
   if (role === "HEAD_COACH") return group === "tactical" || group === "self";
+  // ATHLETE and SALES_OPS both fall through to "self". SALES_OPS never
+  // reaches a venture dashboard at all (see VENTURE_DASHBOARD_ROLES);
+  // this is the client-side half of the same answer.
   return group === "self";
 }
 

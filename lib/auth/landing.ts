@@ -50,22 +50,35 @@ export const COMMAND_CANVAS_ROUTE = "/dashboard";
 export const VENTURE_ROUTE = "/dashboard/venture";
 
 /**
+ * Revenue pipeline. A SALES_OPS grant opens the CRM and nothing else, so
+ * this is not merely where they land first — it is the only surface the
+ * grant reaches.
+ */
+export const CRM_ROUTE = "/dashboard/crm";
+
+/**
  * Where `actor` belongs immediately after sign-in.
  *
  *   founder / any GLOBAL_FOUNDER grant → league command centre
  *   any HEAD_COACH grant               → command canvas (coach lens)
+ *   any SALES_OPS grant                → the CRM pipeline
  *   any ATHLETE grant                  → their venture dashboard
  *   no grant, no profile               → profile setup
  *   no grant, profile filed            → access pending
  *
  * A grant always wins over the profile step: the founder and any coach
  * already onboarded out-of-band must never be sent to fill in a form.
+ *
+ * SALES_OPS outranks ATHLETE because it is the narrower surface: an
+ * account holding both is a seller who also trains, and dropping them on
+ * a venture dashboard would hide the pipeline they signed in for.
  */
 export function landingFor(actor: LandingActor | null | undefined): string {
   if (!actor) return "/login";
   const held = Object.values(actor.roles).filter(Boolean);
   if (actor.isFounder || held.includes("GLOBAL_FOUNDER")) return LEAGUE_COMMAND_ROUTE;
   if (held.includes("HEAD_COACH")) return COMMAND_CANVAS_ROUTE;
+  if (held.includes("SALES_OPS")) return CRM_ROUTE;
   if (held.includes("ATHLETE")) return VENTURE_ROUTE;
   return actor.hasProfile ? ACCESS_PENDING_ROUTE : PROFILE_SETUP_ROUTE;
 }

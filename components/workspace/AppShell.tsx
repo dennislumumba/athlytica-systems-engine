@@ -12,7 +12,13 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { WORKSPACES, WORKSPACE_SLUGS, visibleNav, type WorkspaceId } from "@/config/workspaces";
+import {
+  WORKSPACES,
+  WORKSPACE_SLUGS,
+  canOpenCrm,
+  visibleNav,
+  type WorkspaceId,
+} from "@/config/workspaces";
 import {
   MODE_BLURB,
   MODE_LABEL,
@@ -69,17 +75,42 @@ export function AppShell({ children }: { children: ReactNode }) {
     );
   }
 
+  // The CRM is its own module on its own routes, gated on athlytica_hq
+  // rather than on the active workspace — a deal spans ventures, so it
+  // does not belong under one venture's deep-dive list.
+  const crmRole = actor.roles.athlytica_hq;
+  const showCrm = actor.isFounder || (crmRole ? canOpenCrm(crmRole) : false);
+
   if (available.length === 0) {
+    // A SALES_OPS account lands here by design: it holds a grant, but not
+    // one that opens a venture dashboard. "No access" would be a lie —
+    // send them to the surface their grant is actually for.
     return (
       <main style={{ maxWidth: 560, margin: "80px auto", padding: 24 }}>
-        <h1 style={{ fontSize: 22 }}>No workspace access</h1>
+        <h1 style={{ fontSize: 22 }}>{showCrm ? "Revenue pipeline" : "No workspace access"}</h1>
         <p style={{ color: theme.muted, lineHeight: 1.7 }}>
-          Signed in as <strong>{actor.email}</strong>, but no workspace role has been granted to
-          this account yet. Ask the Athlytica HQ administrator to add you to a workspace.
+          {showCrm ? (
+            <>
+              Signed in as <strong>{actor.email}</strong>. This account has commercial access but no
+              venture dashboard.
+            </>
+          ) : (
+            <>
+              Signed in as <strong>{actor.email}</strong>, but no workspace role has been granted to
+              this account yet. Ask the Athlytica HQ administrator to add you to a workspace.
+            </>
+          )}
         </p>
-        <button type="button" style={buttonStyle} onClick={() => void signOut()}>
-          Sign out
-        </button>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {showCrm && (
+            <Link href="/dashboard/crm" style={{ ...buttonStyle, textDecoration: "none" }}>
+              Open the pipeline
+            </Link>
+          )}
+          <button type="button" style={buttonStyle} onClick={() => void signOut()}>
+            Sign out
+          </button>
+        </div>
       </main>
     );
   }
@@ -202,6 +233,19 @@ export function AppShell({ children }: { children: ReactNode }) {
               href: `/dashboard/w/${WORKSPACE_SLUGS[id]}`,
             }))}
           />
+          {showCrm && (
+            <NavGroup
+              heading="Revenue"
+              accent={theme.good}
+              items={[
+                { id: "crm-today", label: "Today", href: "/dashboard/crm" },
+                { id: "crm-pipeline", label: "Pipeline", href: "/dashboard/crm/pipeline" },
+                { id: "crm-contacts", label: "Contacts", href: "/dashboard/crm/contacts" },
+                { id: "crm-tasks", label: "Tasks", href: "/dashboard/crm/tasks" },
+                { id: "crm-reports", label: "Reports", href: "/dashboard/crm/reports" },
+              ]}
+            />
+          )}
           <NavGroup
             heading={`${workspace ? WORKSPACES[workspace].short : ""} deep dive`}
             accent={accent}

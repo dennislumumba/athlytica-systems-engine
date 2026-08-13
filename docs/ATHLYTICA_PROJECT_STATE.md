@@ -11,15 +11,15 @@ repository, without any prior conversation.
 
 | | |
 |---|---|
-| **Timestamp** | 2026-08-12 (Phase 0.3I) |
-| **Commit** | `origin/main` = **`4cf7787`** = `HEAD`. Everything through 0.3H is pushed (0.3I, 2026-08-12 ~22:12 UTC). |
-| **Deployment** | ⚠ **NOT DEPLOYED.** 13 minutes after the push, `GET /api/v1/onboarding/google-forms` returns **405** on both `athlytica-systems-engine.vercel.app` and `www.nairobihockey.com` — the old POST-only handler. The retired build exports `GET` and would return **410**. **Production is running pre-0.3H code.** See D-28. |
-| **Working tree** | clean. |
+| **Timestamp** | 2026-08-12 (Phase 0.3K) |
+| **Commit** | `origin/main` = **`06afdab`** = `HEAD`. |
+| **Deployment** | ✅ **DEPLOYED, and provably so.** `dpl_AZdYh344snMvashHUT3ws8P4m9S8` — `target: production`, `source: git`, `gitSource.ref: main`, `gitSource.sha: 06afdab…`, READY in 44s, holding `athlytica-systems-engine.vercel.app`. `GET /api/v1/onboarding/google-forms` returns **410** on both that host and `www.nairobihockey.com`. **This is the first successful Git-driven production deployment in the project's history.** Root cause of D-28: Vercel's Production Branch was `master`, so every push to `main` built a Preview. Re-check any time with `pnpm verify:production`. See [`phase0/DEPLOYMENT_CHAIN_AUDIT.md`](phase0/DEPLOYMENT_CHAIN_AUDIT.md). |
+| **Working tree** | **dirty** — the CRM module (Phase C1) is written and applied but **not committed**. 5 modified files, 11 untracked. |
 | **Supabase project** | `qxfrypvevjsyzkquewxh` |
-| **Applied migrations** | **36** — `20260812221912_crm_core` applied 2026-08-12 22:19 UTC by **another actor**, concurrent with this phase (6 `crm_*` tables; local files exist but are **untracked** — not this session's work and not committed here). Previously **34** — M2 `20260812083829_record_classification`, M3 `20260812122254_m3_payment_replay_integrity`, **M4 `20260812172530_m4_payment_authorization_boundary`** |
-| **Local migration files** | **36** — M2, M3, M4 and the concurrent `crm_core` are the only files whose names match their applied versions (D-16 pattern). |
-| **Test suite** | `node --test "tests/**/*.test.mts"` → **178 pass / 0 fail** |
-| **Typecheck** | **clean** · `next build` **✓ compiled successfully** (0.3H) |
+| **Applied migrations** | **36** — both new ones are the **CRM module (Phase C1)**, not a third party: `20260812221912_crm_core` (6 `crm_*` tables) and `20260812222626_crm_sales_ops_role` (widens the `workspace_roles` role/workspace CHECKs). The 0.3I note attributing `crm_core` to "another actor" was written by a session running concurrently with C1 and is superseded. Previously **34** — M2 `20260812083829_record_classification`, M3 `20260812122254_m3_payment_replay_integrity`, **M4 `20260812172530_m4_payment_authorization_boundary`** |
+| **Local migration files** | **37** — M2, M3, M4 and the two C1 files are the only names matching their applied versions (D-16 pattern); both C1 files were renamed to the version Postgres stamped. |
+| **Test suite** | `node --test "tests/**/*.test.mts"` → **210 pass / 0 fail** (178 + 32 from `crm-metrics` and `crm-permissions`) |
+| **Typecheck** | **clean** · `next build` **✓ compiled successfully** (C1) |
 | **Mutation coverage** | **21 / 21 caught** — every live athlete-creation door, plus the Google Forms retirement guards |
 
 ### Row counts (read-only verification)
@@ -57,8 +57,9 @@ repository, without any prior conversation.
 | **Payments** | **Replay integrity live (M3).** Duplicate = all immutable attrs equal → idempotent no-op. Any attr differs → `RECONCILIATION_REQUIRED`, evidence preserved in `payment_reconciliation_exception`, nothing settled, stored event never modified. Pre-classified TEST receipts return `TEST_CLASSIFIED` and cannot flip the gate or settle. 5 `payment_events`, all `SETTLED_UNMATCHED` — **none matches any registration**. **All five are classified TEST** in `record_classification` (M2, applied 2026-08-12): PRODUCTION revenue reads KES 0.00. **All five are synthetic** (`AUDITTEST001-004` + `SGX7HQ2LM9`, the last confirmed absent from the Safaricom statement by the owner, 2026-08-12). **Production has never processed a real payment.** Table remains append-only by trigger — the 5 rows were classified, never modified. |
 | **Registration** | **3 rows, ONE household, two ventures** — see the row-count table. All `PENDING_PAYMENT`. The live F-5 case. **M4 is applied in the database, so the protection is real even though the application build that calls it is not yet deployed** — the venture-constrained matcher lives in `settle_payment_transaction`, not in the app. |
 | **Guardian** | `likeEscape` authorization fix **committed to `main`** (`0441e0c`). Unit-tested. **Not integration-tested against a database.** |
-| **Onboarding** | Big Ice path live (`lib/services/bigice-onboarding.ts`). NRHL path live (`app/api/v1/workspaces/nrhl/onboard-paid-athlete`). **Both mint an athlete code outside the insert transaction** — see R15. **Google Forms retired in `main` (0.3H) but NOT YET IN PRODUCTION** — the deployed build still serves the old creating handler (405 on GET, not 410). Four creation doors in git; **five still live in production** until the deploy lands. |
+| **Onboarding** | Big Ice path live (`lib/services/bigice-onboarding.ts`). NRHL path live (`app/api/v1/workspaces/nrhl/onboard-paid-athlete`). **Both mint an athlete code outside the insert transaction** — see R15. **Google Forms retired (0.3H) and LIVE IN PRODUCTION since 0.3K** — `GET /api/v1/onboarding/google-forms` returns **410** on both hosts. **Four live athlete-creation doors, down from five**: three payment-authorized (Big Ice callback, retry, NRHL webhook) + one grant-gated import (`nrhl/ingest`). Git and production agree. |
 | **Portal** | `resolveGuardian()` reads `bigice_athlete` by `guardian_email` ILIKE. 0 rows, so no exposure today. |
+| **CRM (Phase C1)** | **Live in the database, uncommitted in git, not deployed.** Six `crm_*` tables, all RLS-enabled with **zero policies** and granted to `service_role` only — reachable exclusively through `/api/v1/crm`, gated to `GLOBAL_FOUNDER`/`SALES_OPS` in `athlytica_hq`. Lead and opportunity are **one table** (`crm_opportunity`); the eight lead statuses and eight pipeline stages were the same eight states. Money is referenced, never restated: `crm_opportunity.registration_id → registrations`, and *collected* is computed only from receipts present in `payment_events_production` — so with all 5 payments classified TEST, collected reads **KES 0** and the dashboard says why rather than showing a bare zero. Two triggers touch pre-existing tables: `registrations_crm_settlement_won` (settlement → stage `won`, wrapped in an exception block so CRM can never abort a payment) and the `workspace_roles` CHECK widening for `SALES_OPS`. |
 | **Migration state** | **36 applied / 36 local files; four versions match** — M2 `20260812083829`, M3 `20260812122254`, M4 `20260812172530`, all aligned deliberately. The other 32 do not. Cause: `apply_migration` stamps `to_char(current_timestamp,…)` — **M4 hit this trap during 0.3E** (written as `…164500`, applied as `…172530`) and the local files were renamed to match. `supabase db push` **must not be run**. |
 | **Legacy data** | **Nothing migrated.** ~3,096 session rows, 209 athlete IDs across 23 `SOURCE_CANDIDATE` CSVs. No file is authoritative. |
 | **Metrics** | Registry v2: 27 VERIFIED / 2 INFERRED / 4 UNKNOWN / 1 DEPRECATED. **Not finalised** — 5 blockers. |
@@ -170,24 +171,29 @@ Investigations already completed. Do not redo these without new evidence.
 
 ## NEXT ACTION
 
-> **Find out why `main` is not deploying.**
+> **Commit the CRM module, then run `pnpm verify:production`.**
 >
-> `origin/main` is `4cf7787` and the working tree is clean, but 13 minutes
-> after the push both production aliases still serve the pre-0.3H build
-> (`GET /api/v1/onboarding/google-forms` → 405, not 410). CLAUDE.md budgets
-> ~3 minutes. The branch is correct — this is not the `master` mistake
-> repeating.
+> D-28 is closed: `main` now deploys to production through Vercel's Git
+> integration, and `06afdab` is verifiably the commit production is
+> running. The deployment chain is no longer the blocker.
 >
-> **Everything verified in 0.3D–0.3H is code that production is not
-> running.** The database has M4; the deployed application does not call
-> it. The Google Forms door is retired in git and open in production.
+> The blocker is now that **the CRM module (Phase C1) exists in the
+> production database and in nobody's git history.** Six `crm_*` tables
+> and a widened `workspace_roles` CHECK are applied; the application code
+> that reads them is untracked in the working tree. Until it is committed
+> and pushed, the database and the deployed application disagree, and the
+> disagreement is invisible — exactly the class of fault 0.3K just spent a
+> phase making visible. `docs/ATHLYTICA_PROJECT_STATE.md` also carries
+> uncommitted C1 edits **plus** 0.3K's deployment corrections, which were
+> written to disk but deliberately not staged; whoever commits C1 carries
+> both.
 >
-> Vercel state could not be read from here: the MCP connector returns 403
-> for this project and `gh` is not installed. Check the Vercel dashboard
-> for `athlytica-systems-engine` — a failed build, a disconnected Git
-> integration, or a paused project all produce exactly this.
+> Two 0.3K follow-ups, each small: **D-28a** (a `/api/v1/version`
+> endpoint, so production's identity does not depend on a hand-picked
+> behavioural probe) and **D-28b** (delete `origin/master`, which is now
+> wired to nothing and is the same foot-gun with a new label).
 >
-> Also awaiting a yes/no, each one command: **D-26a** (classify the seven
+> Still awaiting a yes/no, each one command: **D-26a** (classify the seven
 > synthetic records), **D-26b** (the 6 TTA demo athletes), **D-27**
 > (disable the Apps Script trigger in Google).
 
