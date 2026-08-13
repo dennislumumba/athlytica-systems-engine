@@ -24,18 +24,21 @@ written.
 └───────────────────────────┬──────────────────────────────────┘
                             ▼
 ┌──────────────────────────────────────────────────────────────┐
-│  RLS / SECURITY                                🟡 READY      │
+│  RLS / SECURITY                          🟡 IN PROGRESS      │
 │  deny-by-default before the first real row is written        │
 │  Retrofitting RLS onto populated PII tables means a window   │
 │  where the data was exposed. That window cannot be closed    │
 │  retroactively.                                              │
+│  0.4: safe TODAY only because auth.users and public.users    │
+│  are disconnected — by accident, not by policy.              │
 └───────────────────────────┬──────────────────────────────────┘
                             ▼
 ┌──────────────────────────────────────────────────────────────┐
-│  IDENTITY                                      🟡 READY      │
+│  IDENTITY                                🟡 IN PROGRESS      │
 │  athlete_uid · athlytica_id · legacy ledger · membership     │
 │  Two of these four layers do not exist in the database.      │
 │  An identifier issued wrongly is permanent.                  │
+│  0.4: blocked on D-33 (scheme), D-34 (timing), D-35 (env).   │
 └───────────────────────────┬──────────────────────────────────┘
                             ▼
 ┌──────────────────────────────────────────────────────────────┐
@@ -195,6 +198,34 @@ D-04 export ──▶ identity resolution ──▶ athlytica_id issuance ──
 for a Google Sheet. Every week it is not asked for is a week Phase 0.5 cannot
 start, while Phase 0.4 — which does not need it — is the last thing that can
 be built in the meantime.
+
+## 5a. The coupling Phase 0.4 discovered
+
+Not a dependency between phases — a dependency between two edits inside 0.4,
+and it does not appear anywhere else in this document because it is not an
+ordering of work. It is an ordering of *risk*.
+
+```
+        auth.users  ──✗ no bridge ✗──  public.users
+             │                              │
+   what the app authorises on      what every RLS helper resolves through
+             │                              │
+             └──────────┬───────────────────┘
+                        ▼
+        the bridge that makes the parent portal possible
+                        =
+        the bridge that arms D-01a
+```
+
+`jwt_athlete_ids()` and `jwt_tenant_ids()` return ∅ for every possible caller
+today, so every athlete-scoped policy denies every row. That is the current
+containment, and it is also why no parent can see their own child. **Building
+the bridge is the whole point of the identity layer, and building it turns on
+the vulnerability.**
+
+Therefore, inside 0.4: **close `public.athletes` (minimum-set items 1–2)
+*before* bridging `auth.users` → `public.users`.** Not the same day. Not the
+same migration. First.
 
 ## 6. The two inversions worth naming
 

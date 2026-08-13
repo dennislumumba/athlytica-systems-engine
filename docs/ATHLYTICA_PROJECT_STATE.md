@@ -113,16 +113,23 @@ against. Full analysis: `phase0/ATHLYTICA_FOUNDATION_0_3L_REPORT.md` §6.
 | `anon` | **no table grants at all** |
 | `authenticated` | full DML on **44 tables + 3 views**, including `athlete`, `guardian_contact`, `registrations`, `users`, `workspace_roles`, `biometric_record`, `injury_record`, `custody_record` |
 
-Three defects found and **not fixed** (deliberately — 0.3L changes nothing):
+Defects found and **not fixed** (0.3L and 0.4 both changed nothing):
 
-- **D-01a — HIGH.** `public.athletes.self_identity_policy` is `FOR ALL` with
-  `WITH CHECK` on `user_id` only. `passport_athlete_id` is unconstrained and
-  **not unique**, and it feeds `jwt_athlete_ids()` — the `USING` clause for
-  `athlete`, `guardian_contact`, `biometric_record`, `injury_record`,
-  `custody_record`, `cohort_session_registry`. A signed-in user can claim any
-  athlete uuid that exists and read that child's PII. Contained today **only**
-  because uuids are not enumerable and all 13 athlete rows are synthetic.
-  **Must close before the first real athlete row is written.**
+- **D-01a / D-34 — LATENT, not live** (re-graded 0.4, proven in a rolled-back
+  transaction). `public.athletes.self_identity_policy` is `FOR ALL` with
+  `WITH CHECK` on `user_id` only; `passport_athlete_id` is unconstrained, not
+  unique, and feeds `jwt_athlete_ids()`. **But the containment is the foreign
+  key, not the policy:** `athletes.user_id → public.users`, and `public.users`
+  holds no `auth.users.id`. An attacker with no `public.users` row is blocked at
+  **SQLSTATE 23503**; given one, the same attack **succeeds** and returns the
+  victim's name, DOB, guardian name and contact. **It arms the moment
+  `auth.users` → `public.users` is bridged — the repair and the vulnerability
+  are the same edit.** No application code has ever written `public.athletes`,
+  so revoking the write grant costs nothing.
+- **D-36 — `jwt_athlete_ids()` unions two incompatible key spaces.** Branch 1 is
+  passport-plane, branch 2 is app-plane, measured overlap **zero**. Coach-scoped
+  PII visibility is a functional gap, **not** a live exposure — correcting
+  0.3L §6.5.
 - **D-01b.** `tenant_isolation_policy` is a `FOR ALL` policy applied to
   **PUBLIC** on `registrations` (and 3 others), gated on a GUC no PostgREST
   client can set. Inert today; an all-command door on the money path the day
@@ -132,10 +139,20 @@ Three defects found and **not fixed** (deliberately — 0.3L changes nothing):
 
 ## CURRENT IDENTITY STATE
 
+**The identity graph is severed** (0.4, VERIFIED). `auth.users` (4 rows) is what
+the deployed application authorises on — `requireWorkspaceRole()` →
+`auth.getUser()` → `workspace_roles`. `public.users` (8 rows) is legacy seed
+data and is what `jwt_tenant_ids()`, `jwt_athlete_ids()` branch 2 and
+`/api/v1/mcp` resolve through. **Zero id overlap, zero email overlap, no
+trigger bridges them.** So `jwt_athlete_ids()` and `jwt_tenant_ids()` return ∅
+for every possible authenticated caller, and every athlete-scoped policy denies
+every row. **The database is safe by disconnection, not by policy** — and no
+parent portal can work until the bridge exists. **D-37.**
+
 | Layer | State |
 |---|---|
 | `athlete_uid` — canonical internal identity | `athlytica_core.athletes`, **empty** |
-| `athlytica_id` — public human-readable ID | **does not exist**; sequence not created |
+| `athlytica_id` — public human-readable ID | **does not exist**; scheme undecided (**D-33**) |
 | legacy identifier ledger | **not built**; legacy codes live only in CSVs |
 | organization membership | `athlete_tenant_links`, 6 rows, 1 tenant ✅ |
 
@@ -145,14 +162,20 @@ Three defects found and **not fixed** (deliberately — 0.3L changes nothing):
 `public.athletes` (6 rows) is a **misnamed link table**, not an athlete table.
 `bigice_athlete` / `nrhl_athlete` are **empty venture projections**.
 
-**R4 — the collision.** The sequence sits at 504; legacy occupies `ATH-500`–
-`ATH-638`; the next mint would be 505. Named collisions: `ATH-537` Elaine,
-`ATH-566` Shaya Das, `ATH-598` Shirley Makena, `ATH-620` contested. **M1/D-20
-does not solve this** — it makes issuance atomic without changing which number
-is issued, which only makes the collision reliable. Recommended strategy
-(0.3L §5.2, **not implemented**): a padded `ATH-000001` format independent of
-`scalable_id_sequence`, legacy codes as scheme-qualified ledger claims only,
-and the three legacy issuers revoked rather than merely unused.
+**R4 / D-33 — the collision, re-stated correctly in 0.4.** The sequence sits at
+504. Legacy codes are **3-digit** (`ATH-500`–`ATH-638`); the issuers emit
+**5-digit** `ATH-00505` and `BIIF-2026-0505`. Those strings do not collide —
+**until `migrateLegacyCode()` (`lib/services/nrhl-etl.ts:178`) pads legacy codes
+to exactly five digits, which is its purpose.** After migration the legacy block
+is `ATH-00500`–`ATH-00638` and the next issue is `ATH-00505`. **Padding creates
+the collision; it does not dissolve it** — so 0.3L §5.2 and `ATHLETE_ID_SPEC.md`
+§3 are both wrong on this point. `migrateLegacyCode` has **no production
+caller**: R4 is armed, not fired. **M1/D-20 does not solve it** — an atomic
+issuer pointed at 504 issues a colliding identifier reliably. **Five
+incompatible `ATH-*` namespaces exist**; the only one with live rows,
+`account_reference` (`ATH-9YWQ`), is a *payment reference*, not an identity.
+Options in [`phase0/IDENTITY_R4_ANALYSIS.md`](phase0/IDENTITY_R4_ANALYSIS.md);
+recommended: **B**, `ATH-YYYY-XXXXXX` non-sequential, sequence retired.
 
 ---
 
@@ -216,9 +239,11 @@ Each is a human choice, not engineering. The first three gate Phase 0.4.
 
 | ID | Question |
 |---|---|
+| **D-33** (R4) | Which identifier scheme? A/B/C/D — **recommended B**, `ATH-YYYY-XXXXXX` non-sequential. Secondary: `account_reference` `ATH-` → `PAY-`? |
+| **D-34** (D-01a) | Close the `public.athletes` bridge **now as ordinary work** (recommended), as an emergency, or later? |
+| **D-35** | Provide an isolated Postgres (Docker / paid Supabase branch)? **0.4 cannot complete without it.** |
 | **D-32** | ⚠ Hold `supabase migration repair` until D-16 is decided — it overwrites the accurate remote ledger |
-| **R4** | Adopt a padded `athlytica_id` independent of `scalable_id_sequence`? |
-| **D-01a** | Close the `public.athletes` escalation now, or after identity resolution? |
+| **D-37** | Retire or bridge `public.users`? Upstream of the parent portal; the bridge arms D-34 |
 | **D-25** | Delete the five unused production `MPESA_*` credentials (+ `MS100N_HASH_KEY`)? |
 | **D-04** | Which export is authoritative? — *ask for the 16-tab Google Sheet now; it is the longest pole in the project* |
 | D-26a | Apply the seven-record TEST classification? (one command) |
@@ -258,7 +283,10 @@ Investigations already completed. Do not redo these without new evidence.
 | Is GitHub's default branch also Vercel's production branch? | **No — they are independent settings.** It was `master` while every push went to `main`, for the life of the project. Read `productionBranch`; never infer it. | `phase0/DEPLOYMENT_CHAIN_AUDIT.md` |
 | Can a `vercel --prod` deployment's commit SHA be trusted? | **No.** It uploads the working tree and stamps whatever commit git is sitting on. Two production deployments are labelled `6b19bbc` and built code that exists in no commit. | same, §4a |
 | Is `record_classification` keyed on `payment_events.id`? | **No — on `mpesa_receipt_number`.** A join on the surrogate id returns NULLs and looks like nothing is classified. All five *are* TEST. | `phase0/ATHLYTICA_FOUNDATION_0_3L_REPORT.md` §3.1 |
-| Is `public.athletes` an athlete table? | **No.** It is a `user ⇄ athlete` claim link with a UNIQUE on `user_id`. It is also the D-01a escalation surface. | same, §5.1 |
+| Is `public.athletes` an athlete table? | **No.** It is the deliberate **passport ⇄ app-plane bridge**: `athlete.athlete_id → athletes.passport_athlete_id → athletes.id → athlete_tenant_links`. Implemented correctly in `app/api/v1/mcp/route.ts`. That is exactly why client writes to it are dangerous (D-34). | `phase0/RLS_IDENTITY_THREAT_MODEL.md` §3 |
+| Do `auth.users` and `public.users` overlap? | **No — zero ids, zero emails, no bridging trigger.** The app authorises on `auth.users`; every RLS helper resolves through `public.users`. Every athlete-scoped policy therefore denies every row. Safe by disconnection, not by policy. | same, §1 |
+| Does padding athlete codes to 5 or 6 digits avoid the legacy collision? | **No — padding is what creates it.** `migrateLegacyCode()` pads legacy 3-digit codes to exactly the issuer's 5-digit width. `ATHLETE_ID_SPEC.md` §3 and 0.3L §5.2 are both wrong on this. | `phase0/IDENTITY_R4_ANALYSIS.md` §1 |
+| Can an authenticated user claim another athlete via `public.athletes`? | **Not today** — blocked at SQLSTATE 23503 by `athletes_user_id_fkey`. **Yes the moment a `public.users` row exists for them.** Proven in a rolled-back transaction. | `phase0/RLS_IDENTITY_THREAT_MODEL.md` §3.3 |
 | Is `athlytica_core` exposed to clients? | **No.** No client role holds schema `USAGE`. The advisor lint does not cover it, so its absence from the advisor output is not evidence either way. | same, §6.1 |
 
 ---
@@ -269,6 +297,12 @@ Investigations already completed. Do not redo these without new evidence.
 > The CRM was committed as `307bacb` during 0.3L but not pushed. The chain
 > repaired in 0.3K will carry it to production in ~45 seconds without further
 > instruction. **Do not run `supabase migration repair` on the way (D-32).**
+>
+> **Then answer D-33, D-34, D-35.** Phase 0.4 is IN PROGRESS and stopped at that
+> boundary with no production mutation. Execution order once decided: R4
+> migration → D-01a containment (minimum set items 1–4) → isolated environment →
+> FORCE RLS gate → M1. **Close `public.athletes` before bridging `auth.users` →
+> `public.users`**, because that bridge is what arms the exploit.
 >
 > **Then Phase 0.4 — Identity + RLS Foundation.** Do not start before R4,
 > D-01a and D-25 are answered; each changes what 0.4 builds. 0.4 does **not**
@@ -300,4 +334,5 @@ Investigations already completed. Do not redo these without new evidence.
 | **0.3H** | **Google Forms retired** → `410 CHANNEL_RETIRED`. 5 creation doors → 4. 178/178, 21/21 mutations. | **none** |
 | **0.3I–0.3J** | Detected that `main` was pushed and production was not running it. Raised **D-28**. | **none** |
 | **0.3K** | **Deployment chain repaired.** `productionBranch` `master` → `main`. First Git-driven production deployment in the project's history. `pnpm verify:production` added. D-28 CLOSED. | **1 Vercel setting** |
+| **0.4** | **Identity + RLS foundation — analysis complete, stopped at the decision boundary.** Identity graph proven **severed** (`auth.users` ∩ `public.users` = ∅). D-01a re-graded **LATENT** and proven both ways in a rolled-back transaction (23503 blocked / succeeds once bridged). R4 re-stated: `migrateLegacyCode()` creates the collision. `jwt_athlete_ids()` found to union two incompatible key spaces. M1 designed, **not applied**. FORCE RLS preserved as an explicit gate, not claimed. D-33/34/35/36/37 raised; four 0.3L claims corrected. | **none — read-only; all writes rolled back** |
 | **0.3L** | **Foundation consolidated.** Live state re-read and reconciled against documentation. Master roadmap + dependency graph established. D-16 quantified (37/36/5/30/1/2), D-25 partially resolved, D-29 resolved, D-30 closed by the CRM author mid-phase (`307bacb`); D-30a, D-31, D-32 and D-01a/b/c raised. Identity representations classified; R4 strategy recommended. | **none — read-only** |

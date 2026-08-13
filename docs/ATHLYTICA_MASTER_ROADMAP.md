@@ -33,7 +33,7 @@ Ordering rationale is in [`ATHLYTICA_DEPENDENCY_GRAPH.md`](ATHLYTICA_DEPENDENCY_
 | **0.1** | Architecture audit | **COMPLETE** |
 | **0.2** | Data architecture | **COMPLETE** |
 | **0.3** | Payment / security / deployment foundation | **COMPLETE** |
-| **0.4** | Identity + RLS foundation | **READY** — 3 owner decisions first |
+| **0.4** | Identity + RLS foundation | **IN PROGRESS** — analysis complete, stopped at the decision boundary (D-33/34/35) |
 | **0.5** | Source-of-truth migration readiness | **BLOCKED** — D-04 |
 | **0.6** | Staging migration | **DEFERRED** — behind 0.5 |
 | **0.7** | Derived analytics | **BLOCKED** — D-09/10/11/12/14 |
@@ -146,7 +146,23 @@ production deployment had ever come from Git.
 give the system one canonical athlete identity, and make the database deny by
 default to everyone who is not entitled to a row.
 
-**Status: READY** — dependencies met — **but gated on three owner decisions.**
+**Status: IN PROGRESS.** Analysis complete 2026-08-13; stopped at the decision
+boundary with **no production mutation**. Deliverables:
+[`phase0/IDENTITY_R4_ANALYSIS.md`](phase0/IDENTITY_R4_ANALYSIS.md),
+[`phase0/RLS_IDENTITY_THREAT_MODEL.md`](phase0/RLS_IDENTITY_THREAT_MODEL.md),
+[`phase0/M1_DESIGN.md`](phase0/M1_DESIGN.md),
+[`phase0/PHASE_0_4_IDENTITY_RLS_REPORT.md`](phase0/PHASE_0_4_IDENTITY_RLS_REPORT.md).
+
+**What the analysis changed.** The identity graph is **severed**: `auth.users`
+(4 rows, what the app authorises on) and `public.users` (8 rows, what every RLS
+helper resolves through) have **zero overlap** and nothing bridges them, so
+`jwt_athlete_ids()` and `jwt_tenant_ids()` return ∅ for every possible caller.
+The database is safe by disconnection, not by policy — and **the repair and the
+D-01a vulnerability are the same edit**. R4 was also mis-stated: the collision
+is created by `migrateLegacyCode()` padding legacy codes to exactly the
+issuer's width, not dissolved by padding.
+
+**Blocked on: D-33 (R4 scheme), D-34 (D-01a timing), D-35 (isolated Postgres).**
 
 **Dependencies.**
 - 0.1 (creation doors known) — met.
@@ -160,9 +176,10 @@ default to everyone who is not entitled to a row.
 
 | ID | Question | Why it changes the work |
 |---|---|---|
-| **R4** | Adopt a padded `athlytica_id` format independent of `scalable_id_sequence`? | Determines whether 0.4 creates a new sequence, re-ranges the old one, or abandons numeric IDs. `scalable_id_sequence = 504` sits inside the legacy `ATH-500`–`ATH-638` block. |
-| **D-01a** | Close the `public.athletes` privilege escalation now, or after identity resolution? | If "after", every real athlete row written in the interim is readable by anyone holding a leaked athlete uuid. |
-| **D-25** | Delete the five unused production `MPESA_*` credentials? | Live M-Pesa credentials with no consumer. Not technically part of 0.4, but it is the last cheap moment to close it. |
+| **D-33** (R4) | Which identifier scheme? **A** continue from 639 · **B** `ATH-YYYY-XXXXXX` non-sequential *(recommended)* · **C** six-digit padded · **D** defer | Determines the issuer contract, which is M1's contract. B also removes M1's row lock. Both target tables are empty, so this is the cheapest it will ever be. |
+| **D-34** (D-01a) | Close the `public.athletes` bridge now as ordinary work *(recommended)*, as an emergency, or after identity resolution? | Zero application flow writes that table (verified). It **must** land before anything bridges `auth.users` → `public.users`, because that bridge is what arms the exploit. |
+| **D-35** | Provide an isolated Postgres (Docker, or a paid Supabase branch)? | `FORCE RLS` and M1 concurrency/rollback are both blocked on it. **0.4 cannot complete without it.** Open since Phase 0.3 §4 was stopped for the same reason. |
+| **D-25** | Delete the five unused production `MPESA_*` credentials? | Live M-Pesa credentials with no consumer. Not part of 0.4 proper, but the last cheap moment to close it. |
 
 **Production risk: HIGH — the highest of any phase in this plan.**
 
@@ -185,7 +202,10 @@ default to everyone who is not entitled to a row.
 3. `tenant_isolation_policy` on `registrations`, `performance_logs`,
    `cohort_telemetry`, `scouting_metric_log` is removed or restricted — no
    `FOR ALL` policy applied to PUBLIC survives on the money path (D-01b).
-4. `FORCE RLS` on every table holding PII or money (D-01c).
+4. `FORCE RLS` on every table holding PII or money (D-01c) — **gated: the
+   FORCE RLS acceptance gate in the threat model §6 must be discharged in an
+   isolated Postgres first, and `tenant_isolation_policy` (item 3) must be
+   dropped before `FORCE` reaches `registrations`, or settlement breaks.**
 5. `crm_*` tables carry explicit policies **before** they hold a contact.
 6. `generate_legacy_claim_token` gets a pinned `search_path`.
 7. Canonical identity: `athlytica_core.athletes` gains `athlete_uid` and
@@ -198,9 +218,13 @@ default to everyone who is not entitled to a row.
 10. `pnpm verify:production` passes after the deploy, and checkout still works:
     a live STK push is accepted.
 
-**Next action.** Get the three decisions. Then write the RLS containment
-migration **with its rollback**, test it in a transaction that is rolled back,
-and only then apply.
+11. `jwt_athlete_ids()` resolves one key space, not two. Branch 2 currently
+    emits app-plane ids into passport-plane policies and matches nothing.
+
+**Next action.** **Answer D-33, D-34, D-35.** Then, in order: the R4 migration
+(new issuer, legacy issuers revoked), the D-01a containment (items 1–4 of the
+minimum set, one small migration, mutation-tested per item), install the
+isolated environment, discharge the FORCE RLS gate, and only then apply M1.
 
 ---
 
