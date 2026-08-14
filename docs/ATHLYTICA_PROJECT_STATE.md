@@ -23,7 +23,7 @@ in [`phase0/DECISION_REGISTER.md`](phase0/DECISION_REGISTER.md).
 | **`HEAD`** | **`307bacb`** — the CRM module, committed 2026-08-13 00:29 UTC (23 files, 5,197 insertions). ⚠ **`main` is ahead of `origin/main` by 1 — not pushed, not deployed. D-30a.** |
 | **Working tree** | 0.3L's own documents only. |
 | **Supabase project** | `qxfrypvevjsyzkquewxh` — 68 base tables (64 `public`, 4 `athlytica_core`), 4 views |
-| **Migration state** | **Baseline built and verified 2026-08-15 (D-40).** `00000000000000_baseline_pre_migrations.sql` supplies the **31 orphan tables** (46% of the schema) that no migration created — including `public.athlete`, which the first migration FK-references and nothing creates. Verified object-for-object against production: 31 tables / 273 columns / 16 enums / 120 constraints / 23 indexes / 5 functions / 3 triggers / 3 views / 27 RLS-enabled / 0 `anon` grants. **Local replay now reaches ten files deep** (Docker is available); it stops at **D-41** — `20260713_…_rls.sql` uses `CREATE POLICY IF NOT EXISTS`, which Postgres has never supported, so that file has never been executable. **The ledger was also rewritten between 08-13 and 08-15** and describes the repository rather than the database; all drift arithmetic stays withdrawn, object existence is the only reliable witness. `db push` and `migration repair` **must not be run** — D-32, D-40. |
+| **Migration state** | ✅ **A clean database can now be rebuilt (D-40).** `00000000000000_baseline_pre_migrations.sql` supplies the **31 orphan tables** (46% of the schema) that no migration created, including `public.athlete`. With **D-41 superseded**, the full chain replays: `npx supabase start` applies baseline + 37 migrations from empty. **The reconstruction differs from production by exactly four objects**, all from `inventory_allocation_trigger` (D-31) — everything else matches object-for-object. **Still unresolved:** the ledger rewrite between 08-13 and 08-15; the ledger describes the repository, not the database, so drift arithmetic stays withdrawn and object existence remains the only reliable witness. `db push` and `migration repair` **must not be run** — D-32, D-40. |
 | **Athlete-ID sequence** | `athlytica_core.scalable_id_sequence = 504` — **inside** the legacy `ATH-500`–`ATH-638` block. 4 codes burned, 0 athlete rows. Canonical `athlytica_id_seq` **not created**. **R4.** |
 | **Test suite** | `pnpm test` → **210 pass / 0 fail** (178 base + 32 from the uncommitted CRM tests) |
 | **Typecheck** | **clean** |
@@ -250,7 +250,7 @@ Each is a human choice, not engineering. The first three gate Phase 0.4.
 
 | ID | Question |
 |---|---|
-| **D-41** | Decide `20260713_…_rls.sql`: mark superseded *(recommended)*, correct its 5 invalid statements, or delete. **Blocks completing the local replay, which blocks M6.** |
+| **D-31** | `inventory_allocation_trigger`: apply it or delete it. Proven executable — production simply lacks its four objects. |
 | **D-35** | `wsl --install` from an **elevated** prompt, reboot, start Docker Desktop, `npx supabase start`. Runbook + 17-case matrix in [`phase0/D35_ISOLATED_ENVIRONMENT_RUNBOOK.md`](phase0/D35_ISOLATED_ENVIRONMENT_RUNBOOK.md). **0.4 cannot complete without it.** |
 | **D-38** | `npx vercel login` — the CLI token expired, so `pnpm verify:production` is blind. Chain verified healthy by direct probe instead. |
 | **D-32** | ⚠ Hold `supabase migration repair` until D-16 is decided — it overwrites the accurate remote ledger |

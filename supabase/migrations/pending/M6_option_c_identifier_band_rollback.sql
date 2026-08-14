@@ -42,3 +42,35 @@ end
 $fn$;
 
 comment on function public.nrhl_next_athlete_code() is null;
+
+
+-- Big Ice restored to the pre-M6 sequence-based issuer, byte-for-byte as
+-- read from production on 2026-08-15. Same warning applies: this re-opens
+-- R15 on the path that actually burned the four codes.
+
+create or replace function public.bigice_next_athlete_code()
+returns text
+language plpgsql
+security definer
+set search_path to 'athlytica_core', 'public'
+as $fn$
+declare
+  next_sequence int;
+begin
+  update athlytica_core.scalable_id_sequence
+     set current_value = current_value + 1
+   where id = 1
+  returning current_value into next_sequence;
+
+  if next_sequence is null then
+    raise exception 'athlytica_core.scalable_id_sequence row id=1 is missing; athlete codes cannot be issued';
+  end if;
+
+  return 'BIIF-' || to_char(now(), 'YYYY') || '-' || lpad(next_sequence::text, 4, '0');
+end
+$fn$;
+
+comment on function public.bigice_next_athlete_code() is null;
+
+-- Both issuers revert together. Reverting only one would recreate exactly
+-- the mixed allocator state M6 exists to avoid.

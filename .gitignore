@@ -8,3 +8,7 @@ tsconfig.tsbuildinfo
 
 .vercel
 .env*
+
+# Supabase CLI local state (created by `supabase start`, not project source)
+supabase/.branches/
+supabase/.temp/

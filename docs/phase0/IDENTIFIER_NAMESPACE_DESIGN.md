@@ -509,6 +509,51 @@ commit of whichever option wins**, and it should carry a `UNIQUE` index on
 ledger has no discipline (`bigice_athlete` has `idx_bigice_athlete_legacy`,
 non-unique).
 
+## 17a. Big Ice transitions with NRHL — both issuers or neither
+
+**Owner constraint, 2026-08-15: the system must not be left in a mixed
+allocator state.** An earlier draft of M6 converted `nrhl_next_athlete_code()`
+only, leaving `bigice_next_athlete_code()` on `scalable_id_sequence`. That is
+now corrected — M6 converts both.
+
+It is also the worse half to have left behind: **the four identifiers R15
+burned (500 → 504) were BIIF codes**, so Big Ice is the path that has actually
+demonstrated the failure.
+
+| | NRHL | Big Ice |
+|---|---|---|
+| Format | `ATH-NNNNN` (unchanged) | `BIIF-YYYY-NNNN` (unchanged) |
+| Storage | `character(9)`, PK | `text`, PK |
+| Issuance band | `10000 … 99999` | `1000 … 9999`, per year |
+| Reserve | `00001 … 09999` — legacy block | `0001 … 0999` — covers the four burned `BIIF-2026-0501..0504` |
+| Capacity | **90,000 total** | **9,000 per year** |
+| Authority | `nrhl_athlete_pkey` | `bigice_athlete_pkey` |
+
+Big Ice keeps its year because every code the format has ever produced carries
+one, and `biif_code` is `text`, so nothing constrains the width. Reserving
+`0001..0999` means the four burned codes can never be re-issued to a different
+child.
+
+**Verified in a rolled-back transaction, 500 draws:** all match
+`^BIIF-YYYY-\d{4}$`, all within band, **none in the reserved range**, **none
+colliding with the burned 0501–0504**, no shared prefix with `ATH-`, sequence
+still 504, and the PK rejected a duplicate with `23505`.
+
+**One number worth carrying forward: 490 distinct in 500 draws**, versus 499
+for NRHL. Ten collisions instead of one, because the band is ten times smaller
+— predicted ≈13.9, observed 10. The model holds at both scales, and it means
+**retry-on-23505 is roughly ten times more load-bearing on the Big Ice path
+than on the NRHL one.** It is not optional there.
+
+**Remaining consumer of `scalable_id_sequence` after M6:**
+`athlytica_core.generate_scalable_athlete_code()`, which mints `ATH-NNNNN`
+**into the legacy reserve** on `athlytica_core.athletes`. Deliberately not
+converted: that table is the canonical identity target whose design is still
+open, and choosing its issuer now would decide that design by implication. It
+is empty, and no client role holds `USAGE` on the schema, so it is a **dormant**
+mixed path rather than a live one — but it must be resolved (converted, or the
+trigger dropped) **before anything writes that table**.
+
 ## 18. What is NOT applied
 
 The sequence is **504**. No identifier exists. No schema changed. No regex

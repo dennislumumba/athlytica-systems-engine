@@ -43,19 +43,40 @@
 -- character(9) and the five-digit grammar leave no room for a sixth
 -- digit. Current nrhl_athlete row count: 0.
 --
+-- BOTH VENTURE ISSUERS TRANSITION TOGETHER.
+--   An earlier draft converted NRHL only. That would have left Big Ice
+--   drawing from scalable_id_sequence while NRHL allocated randomly —
+--   a mixed allocator state, explicitly ruled out. It is also the worse
+--   half to leave behind: the four identifiers R15 burned (500→504) were
+--   BIIF codes, so the Big Ice path is the one that has actually
+--   demonstrated the failure.
+--
+--   Big Ice keeps BIIF-YYYY-NNNN. biif_code is `text`, so nothing
+--   constrains the width, and the year is retained because it is already
+--   in every code the format has ever produced. The counter is drawn at
+--   random from 1000..9999, reserving 0001..0999 — which covers the four
+--   burned codes (BIIF-2026-0501..0504) so they are never re-issued
+--   against a different child.
+--
+--   Per-year capacity is 9,000. bigice_athlete currently holds 0 rows.
+--   Unlike the ATH- band this one resets each year, so the ceiling is
+--   9,000 Big Ice athletes *per year*, not in total.
+--
 -- NOT CHANGED, deliberately:
---   * bigice_next_athlete_code() still draws from scalable_id_sequence.
---     It emits BIIF-YYYY-NNNN, a different namespace that cannot collide
---     with ATH-. Converting it is out of the approved scope — but note
---     that the four codes R15 burned were BIIF codes, so R15 stays alive
---     on the Big Ice path until it is converted too. Raised, not done.
 --   * athlytica_core.generate_scalable_athlete_code() still emits
 --     ATH-NNNNN from the sequence into athlytica_core.athletes.ath_code
---     — i.e. INTO THE LEGACY RESERVE. That table is empty and no client
---     role holds USAGE on the schema, so nothing can reach it. It is left
---     alone because that table is the canonical-identity target whose
---     design is still open; converting its issuer now would presume a
---     decision not yet made. It must be revoked as part of that work.
+--     — i.e. INTO THE LEGACY RESERVE. After this migration it is the ONLY
+--     remaining consumer of scalable_id_sequence.
+--
+--     It is NOT converted here, and that is a judgement worth stating
+--     rather than burying: athlytica_core.athletes is the canonical
+--     identity target whose design is still open, and choosing its issuer
+--     now would decide that design by implication. The table is empty and
+--     no client role holds USAGE on the schema, so nothing can reach it
+--     today. It is not a live mixed-allocator path — it is a dormant one,
+--     and it must be resolved (converted or the trigger dropped) as part
+--     of the canonical identity work, before anything writes that table.
+--
 --   * scalable_id_sequence is NOT reset and NOT dropped. It stays at 504
 --     as evidence of R15.
 --   * migrateLegacyCode() is NOT touched. Option C is safe against it
@@ -103,3 +124,52 @@ comment on function public.nrhl_next_athlete_code() is
   'sequence, so a failed create burns nothing. The probe is advisory — '
   'nrhl_athlete_pkey is the uniqueness authority and callers must retry '
   'on 23505. See docs/phase0/IDENTIFIER_NAMESPACE_DESIGN.md Part II.';
+
+
+-- ---------------------------------------------------------------------
+-- Big Ice — same transition, same law. Ships with the above or not at all.
+-- ---------------------------------------------------------------------
+
+create or replace function public.bigice_next_athlete_code()
+returns text
+language plpgsql
+security definer
+set search_path to 'public'
+as $fn$
+declare
+  candidate text;
+  attempts  int := 0;
+  yr        text := to_char(now(), 'YYYY');
+begin
+  loop
+    attempts := attempts + 1;
+
+    -- 1000 + floor(random() * 9000)  =>  1000 .. 9999
+    -- 0001..0999 is reserved: it covers BIIF-2026-0501..0504, the four
+    -- identifiers R15 burned, so they can never be re-issued to a
+    -- different child.
+    candidate := 'BIIF-' || yr || '-' || lpad((1000 + floor(random() * 9000))::int::text, 4, '0');
+
+    -- Advisory probe only. bigice_athlete_pkey is the authority; the
+    -- caller must still handle 23505.
+    exit when not exists (
+      select 1 from public.bigice_athlete where biif_code = candidate
+    );
+
+    if attempts >= 5 then
+      raise exception
+        'BIIF- issuance band is saturating for %: 5 consecutive candidates collided in BIIF-%-1000..9999. Widen the band before issuing further.', yr, yr
+        using errcode = '53100';
+    end if;
+  end loop;
+
+  return candidate;
+end
+$fn$;
+
+comment on function public.bigice_next_athlete_code() is
+  'D-33 Option C. Draws a random BIIF-YYYY-NNNN from 1000..9999 for the '
+  'current year, reserving 0001..0999 (which covers the four codes R15 '
+  'burned). Consumes no sequence. bigice_athlete_pkey is the uniqueness '
+  'authority and callers must retry on 23505. Capacity is 9,000 per year. '
+  'See docs/phase0/IDENTIFIER_NAMESPACE_DESIGN.md Part II.';

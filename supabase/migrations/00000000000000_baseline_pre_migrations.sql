@@ -20,7 +20,13 @@
 -- WHAT IS IN HERE
 --   Only objects NO migration creates: the athlytica_core schema, 2
 --   extensions, 16 enum types, 31 tables with columns/defaults/constraints/
---   indexes, 5 functions, 3 triggers, 3 views, RLS enablement, client grants.
+--   indexes, 4 functions, 3 triggers, 3 views, RLS enablement, client grants.
+--
+--   "No migration creates it" is judged by the object's ORIGIN, not its
+--   current name. public.link_guardian(text) exists in production and no
+--   migration names it -- but the chain does create it, as
+--   nrhl_link_guardian(text), then renames it. It is therefore excluded.
+--   See the note in section 6.
 --
 -- WHAT IS DELIBERATELY NOT IN HERE
 --   * RLS POLICIES. Every policy on these tables is created by
@@ -699,28 +705,18 @@ BEGIN
 END;
 $function$;
 
-CREATE OR REPLACE FUNCTION public.link_guardian(p_phone_e164 text)
- RETURNS uuid
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'athlytica_core', 'public'
-AS $function$
-declare
-  v_parent_id uuid;
-begin
-  if p_phone_e164 !~ '^\+254[17]\d{8}$' then
-    raise exception 'guardian phone must be Kenyan E.164 (+2547XXXXXXXX or +2541XXXXXXXX), got %', p_phone_e164;
-  end if;
-
-  insert into athlytica_core.parents (phone_number)
-  values (p_phone_e164)
-  on conflict (phone_number) do update
-    set phone_number = excluded.phone_number
-  returning parent_id into v_parent_id;
-
-  return v_parent_id;
-end;
-$function$;
+-- public.link_guardian(text) is DELIBERATELY ABSENT.
+--
+-- It looks like an orphan -- no migration contains "create function
+-- link_guardian" -- but it is not one. The chain creates it under its
+-- previous name and renames it:
+--     20260728140000_nrhl_guardian_link_rpc.sql   creates nrhl_link_guardian(text)
+--     20260811120000_bigice_athlete_plane.sql     alter function ... rename to link_guardian
+--
+-- Defining it here made that rename fail with 42723 "function
+-- link_guardian(text) already exists". Detecting orphans by current name
+-- misses every renamed object; only the replay caught it. Nothing between
+-- those two migrations references link_guardian, so leaving it out is safe.
 
 CREATE OR REPLACE FUNCTION public.trg_custody_age_band()
  RETURNS trigger

@@ -406,6 +406,108 @@ together, or neither.**
 
 ---
 
+# PART III — The chain replays end to end (2026-08-15)
+
+## 16. D-41 excluded, and the result
+
+`20260713_cohort_telemetry_scouting_metric_log_rls.sql` was moved to
+`supabase/migrations/superseded/` — **byte-identical, git records a 100%
+rename**. The Supabase CLI reads only `*.sql` directly in `migrations/`, so a
+subdirectory removes a file from replay without deleting or editing it.
+Rationale is in `superseded/README.md`. **No `migration repair` was run; the
+production ledger still contains its row.**
+
+**Then one more defect surfaced, and it was mine, not history's.** The chain
+reached `20260811120000_bigice_athlete_plane.sql` and failed:
+
+```
+ERROR: function link_guardian(text) already exists in schema "public" (SQLSTATE 42723)
+```
+
+`public.link_guardian` looks like an orphan — no migration contains
+`create function link_guardian`. It is not one. The chain creates it under its
+**previous name** and renames it:
+
+```
+20260728140000_nrhl_guardian_link_rpc.sql   creates nrhl_link_guardian(text)
+20260811120000_bigice_athlete_plane.sql     alter function ... rename to link_guardian
+```
+
+**Detecting orphans by current name misses every renamed object.** Removed from
+the baseline; nothing between those two migrations references it, so the
+exclusion is safe. Baseline function count 5 → **4**.
+
+## 17. Full replay — SUCCESS
+
+```
+00000000000000_baseline_pre_migrations.sql   ✅
+… 37 historical migrations …                 ✅
+20260814210328_m5_d01a_athletes_bridge_containment.sql  ✅
+Local stack up: DB_URL postgresql://…:54322/postgres
+```
+
+**Every migration in the replay path applies to an empty database.**
+
+## 18. Reconstruction verified against production
+
+Counted in the reconstructed local database and in production:
+
+| | Local | Production | Δ |
+|---|---|---|---|
+| Tables | 68 | 67 | **+1** |
+| Columns | 652 | 643 | **+9** |
+| Constraints | 314 | 313 | **+1** |
+| Functions | 25 | 23 | **+2** |
+| Triggers | 18 | 17 | **+1** |
+| Enum types | 16 | 16 | ✅ |
+| Policies | 48 | 48 | ✅ |
+| RLS enabled | 64 | 63 | +1 |
+| **RLS FORCED** | **2** | **2** | ✅ |
+| Views | 4 | 4 | ✅ |
+
+The differences are **exactly, and only**, the four objects from
+`20260720095900_inventory_allocation_trigger.sql`:
+
+```
+table     public.inventory_waitlist_alerts      (9 columns, 1 constraint, RLS on)
+function  public.inventory_column_exists
+function  public.handle_inventory_allocation
+trigger   athlete.trg_inventory_allocation
+```
+
+Nothing else differs. **The baseline plus the historical chain reproduces
+production object-for-object.**
+
+### This settles D-31
+
+The migration **applies cleanly** and creates all four objects. So it is not
+unexecutable — it is **executable and was not executed in production**, or was
+executed and dropped. That separates the two false ledger rows cleanly:
+
+| | Could it run? | Objects in production? |
+|---|---|---|
+| **D-41** `20260713_…_rls.sql` | **No** — invalid SQL in every PG version | No |
+| **D-31** `inventory_allocation_trigger` | **Yes** — proven by replay | No |
+
+Both produce the same lie in `schema_migrations`, by different routes. That is
+the D-40 finding, now demonstrated twice rather than argued once.
+
+## 19. Status after Part III
+
+| | |
+|---|---|
+| Baseline | **built, verified, replays** |
+| Clean reconstruction path | **WORKING** — `npx supabase start` from empty |
+| Remaining replay defects | **none** |
+| Production | **untouched** — 67 tables, 38 ledger rows, sequence 504 |
+| Ledger rewrite (Part I §5) | **still unresolved.** The baseline fixes reconstruction; it does not restore the deleted `bigice_academy_name_parity` row or explain who rewrote the table. |
+| D-35 FORCE RLS matrix | **now runnable** — the environment exists and the schema reconstructs |
+
+The local stack was stopped after verification; `npx supabase start` brings it
+back in about a minute.
+
+---
+
 ## 9. What was NOT done
 
 No `migration repair`. No `db push`. No `db pull`. No table created. No ledger
