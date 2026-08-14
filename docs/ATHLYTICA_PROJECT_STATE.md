@@ -23,7 +23,7 @@ in [`phase0/DECISION_REGISTER.md`](phase0/DECISION_REGISTER.md).
 | **`HEAD`** | **`307bacb`** — the CRM module, committed 2026-08-13 00:29 UTC (23 files, 5,197 insertions). ⚠ **`main` is ahead of `origin/main` by 1 — not pushed, not deployed. D-30a.** |
 | **Working tree** | 0.3L's own documents only. |
 | **Supabase project** | `qxfrypvevjsyzkquewxh` — 68 base tables (64 `public`, 4 `athlytica_core`), 4 views |
-| **Migration state** | ⚠ **UNCERTAIN — two ledgers disagree (D-40).** Reading `supabase_migrations.schema_migrations` **directly**: **38 rows, versions matching all 38 local filenames exactly.** The MCP `list_migrations` tool that 0.3L used returns **36 rows with different versions**, plus one name (`bigice_academy_name_parity`) absent from the table. And the table itself is not trustworthy: `20260720095900 inventory_allocation_trigger` is recorded applied while **none of its objects exist**. **0.3L's "5 match / 30 renamed / 1 no-source / 2 unapplied" is withdrawn pending reconciliation against object existence.** Newest: `20260814210328_m5_d01a_athletes_bridge_containment` (0.4). `supabase db push` and `migration repair` **must not be run** — see D-32, D-40. |
+| **Migration state** | ⚠ **The directory cannot rebuild the database (D-40, reconciled 2026-08-15).** 38 files create 37 tables; production has **67** — **31 (46%) have no creating migration**, including `public.athlete` and all of `athlytica_core`. `npx supabase start` fails on the **first** file because its third line is `REFERENCES public.athlete`, which nothing creates. **Separately, the ledger was rewritten between 08-13 and 08-15** (38 rows now match local filenames; `bigice_academy_name_parity` was deleted while its effect survives). Probable cause: a `supabase db pull` / reconcile flow. **The ledger now describes the repository, not the database** — all drift arithmetic withdrawn; object existence is the only reliable witness. Fix (not executed): generate a `00000000000000_baseline_pre_migrations.sql` from `supabase db dump`. `db push` and `migration repair` **must not be run** — D-32, D-40. |
 | **Athlete-ID sequence** | `athlytica_core.scalable_id_sequence = 504` — **inside** the legacy `ATH-500`–`ATH-638` block. 4 codes burned, 0 athlete rows. Canonical `athlytica_id_seq` **not created**. **R4.** |
 | **Test suite** | `pnpm test` → **210 pass / 0 fail** (178 base + 32 from the uncommitted CRM tests) |
 | **Typecheck** | **clean** |
@@ -154,7 +154,7 @@ parent portal can work until the bridge exists. **D-37.**
 | Layer | State |
 |---|---|
 | `athlete_uid` — canonical internal identity | `athlytica_core.athletes`, **empty** |
-| `athlytica_id` — public human-readable ID | **does not exist**; scheme undecided (**D-33**, Option C recommended) |
+| `athlytica_id` — public human-readable ID | **does not exist.** Scheme **APPROVED (D-33 Option C)**: `ATH-NNNNN`, random from `ATH-10000`–`ATH-99999`, legacy reserve `ATH-00001`–`ATH-09999`. Migration written to `supabase/migrations/pending/`, tested, **not applied — gated on D-40**. |
 
 **Two identifier planes exist, not one** (0.4, VERIFIED). `public.athlete.passport_id`
 (`text`, UNIQUE, **0 issued**) is the *passport* plane, consumed by
@@ -250,7 +250,7 @@ Each is a human choice, not engineering. The first three gate Phase 0.4.
 
 | ID | Question |
 |---|---|
-| **D-33** (R4) | **B and B′ both withdrawn.** Recommendation is **Option C — keep `ATH-NNNNN`, issue at random from a reserved band `ATH-10000`–`ATH-99999`.** Zero schema/regex/endpoint/integration change; disjoint from legacy by a 15× margin; safe against the *unmodified* `migrateLegacyCode`; makes R15 impossible; removes M1's lock. Cost: a **90,000 hard ceiling** on NRHL codes forever. **Sign-off needed on the ceiling.** |
+| **D-40** | Reconcile the migration history — generate a baseline from `supabase db dump` so a clean database can replay. **Blocks applying M6, and blocks D-35 locally.** |
 | **D-35** | `wsl --install` from an **elevated** prompt, reboot, start Docker Desktop, `npx supabase start`. Runbook + 17-case matrix in [`phase0/D35_ISOLATED_ENVIRONMENT_RUNBOOK.md`](phase0/D35_ISOLATED_ENVIRONMENT_RUNBOOK.md). **0.4 cannot complete without it.** |
 | **D-38** | `npx vercel login` — the CLI token expired, so `pnpm verify:production` is blind. Chain verified healthy by direct probe instead. |
 | **D-32** | ⚠ Hold `supabase migration repair` until D-16 is decided — it overwrites the accurate remote ledger |
