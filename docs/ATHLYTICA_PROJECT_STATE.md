@@ -23,7 +23,7 @@ in [`phase0/DECISION_REGISTER.md`](phase0/DECISION_REGISTER.md).
 | **`HEAD`** | **`307bacb`** — the CRM module, committed 2026-08-13 00:29 UTC (23 files, 5,197 insertions). ⚠ **`main` is ahead of `origin/main` by 1 — not pushed, not deployed. D-30a.** |
 | **Working tree** | 0.3L's own documents only. |
 | **Supabase project** | `qxfrypvevjsyzkquewxh` — 68 base tables (64 `public`, 4 `athlytica_core`), 4 views |
-| **Migration state** | **37 applied / 38 local · 6 match · 30 renamed · 1 applied-with-no-source · 2 local-never-applied · 0 duplicates.** Newest: **`20260814210328_m5_d01a_athletes_bridge_containment`** (0.4; local file renamed to the stamped version, so it matches). All unsafe to replay. `supabase db push` **must not be run**. See D-16, D-32. |
+| **Migration state** | ⚠ **UNCERTAIN — two ledgers disagree (D-40).** Reading `supabase_migrations.schema_migrations` **directly**: **38 rows, versions matching all 38 local filenames exactly.** The MCP `list_migrations` tool that 0.3L used returns **36 rows with different versions**, plus one name (`bigice_academy_name_parity`) absent from the table. And the table itself is not trustworthy: `20260720095900 inventory_allocation_trigger` is recorded applied while **none of its objects exist**. **0.3L's "5 match / 30 renamed / 1 no-source / 2 unapplied" is withdrawn pending reconciliation against object existence.** Newest: `20260814210328_m5_d01a_athletes_bridge_containment` (0.4). `supabase db push` and `migration repair` **must not be run** — see D-32, D-40. |
 | **Athlete-ID sequence** | `athlytica_core.scalable_id_sequence = 504` — **inside** the legacy `ATH-500`–`ATH-638` block. 4 codes burned, 0 athlete rows. Canonical `athlytica_id_seq` **not created**. **R4.** |
 | **Test suite** | `pnpm test` → **210 pass / 0 fail** (178 base + 32 from the uncommitted CRM tests) |
 | **Typecheck** | **clean** |
@@ -154,7 +154,16 @@ parent portal can work until the bridge exists. **D-37.**
 | Layer | State |
 |---|---|
 | `athlete_uid` — canonical internal identity | `athlytica_core.athletes`, **empty** |
-| `athlytica_id` — public human-readable ID | **does not exist**; scheme undecided (**D-33**) |
+| `athlytica_id` — public human-readable ID | **does not exist**; scheme undecided (**D-33**, Option C recommended) |
+
+**Two identifier planes exist, not one** (0.4, VERIFIED). `public.athlete.passport_id`
+(`text`, UNIQUE, **0 issued**) is the *passport* plane, consumed by
+`convexAdapter`. `nrhl_athlete.athlete_code` (`character(9)`, PK) and
+`bigice_athlete.biif_code` (`text`, PK) are the *venture* plane, consumed by
+`athleteCodeSchema` and the public verify endpoint. **R4 lives entirely on the
+venture plane** — the sequence feeds it and `migrateLegacyCode()` pads into it.
+Both earlier recommendations (B, B′) failed because they applied a passport
+format to a venture column.
 | legacy identifier ledger | **not built**; legacy codes live only in CSVs |
 | organization membership | `athlete_tenant_links`, 6 rows, 1 tenant ✅ |
 
@@ -241,8 +250,9 @@ Each is a human choice, not engineering. The first three gate Phase 0.4.
 
 | ID | Question |
 |---|---|
-| **D-33** (R4) | **Option B withdrawn — contradicted by evidence** (`character(9)` PK, public verify endpoint, Convex numeric counter). Now: **B′ `ATH-YYYY-NNNN` non-sequential (recommended)** / A continue from 639 / C six-digit / revisit B shorter. Plus, recommended regardless: repoint `migrateLegacyCode` at a `LEG-` ledger namespace. |
-| **D-35** | `wsl --install` from an **elevated** prompt, reboot, start Docker Desktop, `npx supabase start`. **0.4 cannot complete without it.** |
+| **D-33** (R4) | **B and B′ both withdrawn.** Recommendation is **Option C — keep `ATH-NNNNN`, issue at random from a reserved band `ATH-10000`–`ATH-99999`.** Zero schema/regex/endpoint/integration change; disjoint from legacy by a 15× margin; safe against the *unmodified* `migrateLegacyCode`; makes R15 impossible; removes M1's lock. Cost: a **90,000 hard ceiling** on NRHL codes forever. **Sign-off needed on the ceiling.** |
+| **D-35** | `wsl --install` from an **elevated** prompt, reboot, start Docker Desktop, `npx supabase start`. Runbook + 17-case matrix in [`phase0/D35_ISOLATED_ENVIRONMENT_RUNBOOK.md`](phase0/D35_ISOLATED_ENVIRONMENT_RUNBOOK.md). **0.4 cannot complete without it.** |
+| **D-38** | `npx vercel login` — the CLI token expired, so `pnpm verify:production` is blind. Chain verified healthy by direct probe instead. |
 | **D-32** | ⚠ Hold `supabase migration repair` until D-16 is decided — it overwrites the accurate remote ledger |
 | **D-37** | Retire or bridge `public.users`? Upstream of the parent portal; the bridge arms D-34 |
 | **D-25** | Delete the five unused production `MPESA_*` credentials (+ `MS100N_HASH_KEY`)? |
