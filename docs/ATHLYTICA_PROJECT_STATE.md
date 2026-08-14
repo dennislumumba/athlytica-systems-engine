@@ -19,11 +19,11 @@ in [`phase0/DECISION_REGISTER.md`](phase0/DECISION_REGISTER.md).
 |---|---|
 | **Production SHA** | **`0c21b3b87f3f97af911df45a62dc29ffdf90b4cc`** = `HEAD` = `origin/main` |
 | **Vercel deployment** | `dpl_9H2ZZawMZRQaoEbk2URRHUFdQLjQ` — `target: production`, `source: git`, `gitSource.ref: main`, READY, holding `athlytica-systems-engine.vercel.app` |
-| **Deployment chain** | ✅ `pnpm verify:production` → **6/6 chain checks, 7/7 HTTP probes**. Production branch is `main` (fixed 0.3K; it was `master`). |
+| **Deployment chain** | ⚠ **`pnpm verify:production` is currently BLIND** — the Vercel CLI token has expired (`403 forbidden, invalidToken`), so the script cannot read deployment metadata and exits before the probes. **Fix: `npx vercel login`.** The chain itself is intact: production branch is `main` (0.3K), and direct HTTP probes pass **8/8** on the alias plus the proxied `/register` (2026-08-15). |
 | **`HEAD`** | **`307bacb`** — the CRM module, committed 2026-08-13 00:29 UTC (23 files, 5,197 insertions). ⚠ **`main` is ahead of `origin/main` by 1 — not pushed, not deployed. D-30a.** |
 | **Working tree** | 0.3L's own documents only. |
 | **Supabase project** | `qxfrypvevjsyzkquewxh` — 68 base tables (64 `public`, 4 `athlytica_core`), 4 views |
-| **Migration state** | **36 applied / 37 local · 5 match · 30 renamed · 1 applied-with-no-source · 2 local-never-applied · 0 duplicates.** All 37 unsafe to replay. `supabase db push` **must not be run**. See D-16. |
+| **Migration state** | **37 applied / 38 local · 6 match · 30 renamed · 1 applied-with-no-source · 2 local-never-applied · 0 duplicates.** Newest: **`20260814210328_m5_d01a_athletes_bridge_containment`** (0.4; local file renamed to the stamped version, so it matches). All unsafe to replay. `supabase db push` **must not be run**. See D-16, D-32. |
 | **Athlete-ID sequence** | `athlytica_core.scalable_id_sequence = 504` — **inside** the legacy `ATH-500`–`ATH-638` block. 4 codes burned, 0 athlete rows. Canonical `athlytica_id_seq` **not created**. **R4.** |
 | **Test suite** | `pnpm test` → **210 pass / 0 fail** (178 base + 32 from the uncommitted CRM tests) |
 | **Typecheck** | **clean** |
@@ -115,17 +115,19 @@ against. Full analysis: `phase0/ATHLYTICA_FOUNDATION_0_3L_REPORT.md` §6.
 
 Defects found and **not fixed** (0.3L and 0.4 both changed nothing):
 
-- **D-01a / D-34 — LATENT, not live** (re-graded 0.4, proven in a rolled-back
-  transaction). `public.athletes.self_identity_policy` is `FOR ALL` with
-  `WITH CHECK` on `user_id` only; `passport_athlete_id` is unconstrained, not
-  unique, and feeds `jwt_athlete_ids()`. **But the containment is the foreign
-  key, not the policy:** `athletes.user_id → public.users`, and `public.users`
-  holds no `auth.users.id`. An attacker with no `public.users` row is blocked at
-  **SQLSTATE 23503**; given one, the same attack **succeeds** and returns the
-  victim's name, DOB, guardian name and contact. **It arms the moment
-  `auth.users` → `public.users` is bridged — the repair and the vulnerability
-  are the same edit.** No application code has ever written `public.athletes`,
-  so revoking the write grant costs nothing.
+- **D-01a / D-34 — ✅ CONTAINED 2026-08-15.** Migration
+  `20260814210328_m5_d01a_athletes_bridge_containment`. `authenticated` now
+  holds **SELECT only** on `public.athletes`; `self_identity_policy` (FOR ALL)
+  replaced by `athletes_self_read` (SELECT, `user_id = auth.uid()`). **The block
+  is at the privilege layer (42501), before RLS and before the FK**, so it no
+  longer depends on the `auth.users` / `public.users` disconnection. Verified
+  live **with the bridge row present**: attacker INSERT and UPDATE both blocked,
+  attacker reads 0 across `athlete`/`guardian_contact`/`biometric_record`/
+  `injury_record`/`custody_record`; `service_role` still creates claims; the
+  legitimate owner still sees their own athlete and guardian contact. Probe:
+  `supabase/tests/d01a_containment_probe.sql`. **This is containment, not "RLS
+  complete"** — no `UNIQUE` on `passport_athlete_id` (cardinality is a D-37
+  decision) and no `FORCE RLS` (gated on D-35).
 - **D-36 — `jwt_athlete_ids()` unions two incompatible key spaces.** Branch 1 is
   passport-plane, branch 2 is app-plane, measured overlap **zero**. Coach-scoped
   PII visibility is a functional gap, **not** a live exposure — correcting
@@ -239,9 +241,8 @@ Each is a human choice, not engineering. The first three gate Phase 0.4.
 
 | ID | Question |
 |---|---|
-| **D-33** (R4) | Which identifier scheme? A/B/C/D — **recommended B**, `ATH-YYYY-XXXXXX` non-sequential. Secondary: `account_reference` `ATH-` → `PAY-`? |
-| **D-34** (D-01a) | Close the `public.athletes` bridge **now as ordinary work** (recommended), as an emergency, or later? |
-| **D-35** | Provide an isolated Postgres (Docker / paid Supabase branch)? **0.4 cannot complete without it.** |
+| **D-33** (R4) | **Option B withdrawn — contradicted by evidence** (`character(9)` PK, public verify endpoint, Convex numeric counter). Now: **B′ `ATH-YYYY-NNNN` non-sequential (recommended)** / A continue from 639 / C six-digit / revisit B shorter. Plus, recommended regardless: repoint `migrateLegacyCode` at a `LEG-` ledger namespace. |
+| **D-35** | `wsl --install` from an **elevated** prompt, reboot, start Docker Desktop, `npx supabase start`. **0.4 cannot complete without it.** |
 | **D-32** | ⚠ Hold `supabase migration repair` until D-16 is decided — it overwrites the accurate remote ledger |
 | **D-37** | Retire or bridge `public.users`? Upstream of the parent portal; the bridge arms D-34 |
 | **D-25** | Delete the five unused production `MPESA_*` credentials (+ `MS100N_HASH_KEY`)? |
@@ -298,11 +299,16 @@ Investigations already completed. Do not redo these without new evidence.
 > repaired in 0.3K will carry it to production in ~45 seconds without further
 > instruction. **Do not run `supabase migration repair` on the way (D-32).**
 >
-> **Then answer D-33, D-34, D-35.** Phase 0.4 is IN PROGRESS and stopped at that
-> boundary with no production mutation. Execution order once decided: R4
-> migration → D-01a containment (minimum set items 1–4) → isolated environment →
-> FORCE RLS gate → M1. **Close `public.athletes` before bridging `auth.users` →
-> `public.users`**, because that bridge is what arms the exploit.
+> **Then: D-33 and D-35.** Phase 0.4 execution ran 2026-08-15. **D-34 is
+> CLOSED** — the `public.athletes` bridge is contained in production (M5), so
+> the "close it before bridging `auth.users` → `public.users`" ordering
+> constraint is now **satisfied**, and D-37 is free to proceed.
+>
+> **D-33 stopped**: Option B is contradicted by evidence and withdrawn;
+> **B′ `ATH-YYYY-NNNN` is the revised recommendation**. **D-35 is blocked on
+> `wsl --install` from an elevated prompt.** **M1 stays unapplied** — it has no
+> namespace to design around until D-33, and no way to test concurrency until
+> D-35.
 >
 > **Then Phase 0.4 — Identity + RLS Foundation.** Do not start before R4,
 > D-01a and D-25 are answered; each changes what 0.4 builds. 0.4 does **not**
@@ -334,5 +340,6 @@ Investigations already completed. Do not redo these without new evidence.
 | **0.3H** | **Google Forms retired** → `410 CHANNEL_RETIRED`. 5 creation doors → 4. 178/178, 21/21 mutations. | **none** |
 | **0.3I–0.3J** | Detected that `main` was pushed and production was not running it. Raised **D-28**. | **none** |
 | **0.3K** | **Deployment chain repaired.** `productionBranch` `master` → `main`. First Git-driven production deployment in the project's history. `pnpm verify:production` added. D-28 CLOSED. | **1 Vercel setting** |
+| **0.4-exec** | **D-33 stopped (Option B contradicted: `character(9)` PK, public verify endpoint, Convex numeric counter — B′ recommended). D-34 CONTAINED and verified in production (M5). D-35 blocked — Docker installed but WSL is not, session not elevated. M1 unapplied: no namespace, no isolation.** | **1 migration** |
 | **0.4** | **Identity + RLS foundation — analysis complete, stopped at the decision boundary.** Identity graph proven **severed** (`auth.users` ∩ `public.users` = ∅). D-01a re-graded **LATENT** and proven both ways in a rolled-back transaction (23503 blocked / succeeds once bridged). R4 re-stated: `migrateLegacyCode()` creates the collision. `jwt_athlete_ids()` found to union two incompatible key spaces. M1 designed, **not applied**. FORCE RLS preserved as an explicit gate, not claimed. D-33/34/35/36/37 raised; four 0.3L claims corrected. | **none — read-only; all writes rolled back** |
 | **0.3L** | **Foundation consolidated.** Live state re-read and reconciled against documentation. Master roadmap + dependency graph established. D-16 quantified (37/36/5/30/1/2), D-25 partially resolved, D-29 resolved, D-30 closed by the CRM author mid-phase (`307bacb`); D-30a, D-31, D-32 and D-01a/b/c raised. Identity representations classified; R4 strategy recommended. | **none — read-only** |

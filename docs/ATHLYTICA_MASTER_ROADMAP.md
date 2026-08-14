@@ -33,7 +33,7 @@ Ordering rationale is in [`ATHLYTICA_DEPENDENCY_GRAPH.md`](ATHLYTICA_DEPENDENCY_
 | **0.1** | Architecture audit | **COMPLETE** |
 | **0.2** | Data architecture | **COMPLETE** |
 | **0.3** | Payment / security / deployment foundation | **COMPLETE** |
-| **0.4** | Identity + RLS foundation | **IN PROGRESS** — analysis complete, stopped at the decision boundary (D-33/34/35) |
+| **0.4** | Identity + RLS foundation | **IN PROGRESS** — D-34 contained ✅ · D-33 stopped (Option B contradicted) · D-35 blocked (no WSL) · M1 unapplied |
 | **0.5** | Source-of-truth migration readiness | **BLOCKED** — D-04 |
 | **0.6** | Staging migration | **DEFERRED** — behind 0.5 |
 | **0.7** | Derived analytics | **BLOCKED** — D-09/10/11/12/14 |
@@ -162,7 +162,16 @@ D-01a vulnerability are the same edit**. R4 was also mis-stated: the collision
 is created by `migrateLegacyCode()` padding legacy codes to exactly the
 issuer's width, not dissolved by padding.
 
-**Blocked on: D-33 (R4 scheme), D-34 (D-01a timing), D-35 (isolated Postgres).**
+**Execution run 2026-08-15.**
+[`phase0/IDENTIFIER_NAMESPACE_DESIGN.md`](phase0/IDENTIFIER_NAMESPACE_DESIGN.md)
+added. One migration applied: `20260814210328_m5_d01a_athletes_bridge_containment`.
+
+| Decision | Status |
+|---|---|
+| **D-34** — D-01a containment | ✅ **CLOSED.** Applied and verified live: `authenticated` holds SELECT only on `public.athletes`, attacker blocked at **42501** *with the bridge present*, service-role and guardian paths intact. Containment, **not** "RLS complete". |
+| **D-33** — identifier scheme | ⛔ **STOPPED — Option B contradicted by evidence and withdrawn.** `athlete_code` is a `character(9)` PRIMARY KEY (+3 FK columns); `ATH-YYYY-XXXXXX` is 15 chars. It also breaks `athleteCodeSchema` — which validates the **public CORS-open verify endpoint** — and `PASSPORT_ID_PATTERN`, whose adapter throws without a numeric counter. **Revised recommendation: B′ `ATH-YYYY-NNNN`, non-sequential.** |
+| **D-35** — isolated Postgres | ⛔ **BLOCKED.** Docker Desktop is installed and **cannot start: WSL is not installed** and this session is not elevated. Owner action: `wsl --install` elevated → reboot → start Docker Desktop → `npx supabase start`. |
+| **M1** | ⛔ **UNAPPLIED, not redesigned.** No namespace to design around until D-33; no second session to test concurrency until D-35. |
 
 **Dependencies.**
 - 0.1 (creation doors known) — met.

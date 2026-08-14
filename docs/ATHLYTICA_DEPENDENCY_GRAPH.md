@@ -223,9 +223,17 @@ containment, and it is also why no parent can see their own child. **Building
 the bridge is the whole point of the identity layer, and building it turns on
 the vulnerability.**
 
-Therefore, inside 0.4: **close `public.athletes` (minimum-set items 1–2)
-*before* bridging `auth.users` → `public.users`.** Not the same day. Not the
-same migration. First.
+Therefore, inside 0.4: **close `public.athletes` *before* bridging
+`auth.users` → `public.users`.** Not the same day. Not the same migration.
+First.
+
+> **✅ SATISFIED 2026-08-15.** Migration
+> `20260814210328_m5_d01a_athletes_bridge_containment` revoked every write
+> grant on `public.athletes` from `authenticated`. The attacker is now stopped
+> at the privilege layer (42501) **with the bridge present**, so the ordering
+> constraint above is discharged: **D-37 may now build the bridge whenever it
+> is ready.** That is the whole value of having done this first — the identity
+> layer is no longer gated on a race between a feature and a vulnerability.
 
 ## 6. The two inversions worth naming
 
