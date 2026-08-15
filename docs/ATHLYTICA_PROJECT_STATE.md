@@ -250,7 +250,7 @@ Each is a human choice, not engineering. The first three gate Phase 0.4.
 
 | ID | Question |
 |---|---|
-| **D-31** | ✅ **Investigated — verdict SUPERSEDED / UNUSED, no production change needed.** Approve formally superseding it (move to `migrations/superseded/`, like D-41). |
+| **D-42** | `/api/v1/sessions/evaluate` documents a stock-reservation workflow that cannot work. **Recorded only — needs a separate product/architecture decision.** |
 | **D-42** | `/api/v1/sessions/evaluate` documents a stock-reservation workflow that cannot work in production. Delete the sizing branch *(recommended)*, or build the feature. |
 | **D-35** | `wsl --install` from an **elevated** prompt, reboot, start Docker Desktop, `npx supabase start`. Runbook + 17-case matrix in [`phase0/D35_ISOLATED_ENVIRONMENT_RUNBOOK.md`](phase0/D35_ISOLATED_ENVIRONMENT_RUNBOOK.md). **0.4 cannot complete without it.** |
 | **D-38** | `npx vercel login` — the CLI token expired, so `pnpm verify:production` is blind. Chain verified healthy by direct probe instead. |
