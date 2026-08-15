@@ -23,8 +23,8 @@ in [`phase0/DECISION_REGISTER.md`](phase0/DECISION_REGISTER.md).
 | **`HEAD`** | **`307bacb`** — the CRM module, committed 2026-08-13 00:29 UTC (23 files, 5,197 insertions). ⚠ **`main` is ahead of `origin/main` by 1 — not pushed, not deployed. D-30a.** |
 | **Working tree** | 0.3L's own documents only. |
 | **Supabase project** | `qxfrypvevjsyzkquewxh` — 68 base tables (64 `public`, 4 `athlytica_core`), 4 views |
-| **Migration state** | ✅ **A clean database can now be rebuilt (D-40).** `00000000000000_baseline_pre_migrations.sql` supplies the **31 orphan tables** (46% of the schema) that no migration created, including `public.athlete`. With **D-41 superseded**, the full chain replays: `npx supabase start` applies baseline + 37 migrations from empty. **The reconstruction differs from production by exactly four objects**, all from `inventory_allocation_trigger` (D-31) — everything else matches object-for-object. **Still unresolved:** the ledger rewrite between 08-13 and 08-15; the ledger describes the repository, not the database, so drift arithmetic stays withdrawn and object existence remains the only reliable witness. `db push` and `migration repair` **must not be run** — D-32, D-40. |
-| **Athlete-ID sequence** | `athlytica_core.scalable_id_sequence = 504` — **inside** the legacy `ATH-500`–`ATH-638` block. 4 codes burned, 0 athlete rows. Canonical `athlytica_id_seq` **not created**. **R4.** |
+| **Migration state** | **39 applied.** Newest: `20260815081541_m6_option_c_identifier_band` (D-33 Option C, both issuers). ✅ **A clean database can now be rebuilt (D-40).** `00000000000000_baseline_pre_migrations.sql` supplies the **31 orphan tables** (46% of the schema) that no migration created, including `public.athlete`. With **D-41 superseded**, the full chain replays: `npx supabase start` applies baseline + 37 migrations from empty. **The reconstruction differs from production by exactly four objects**, all from `inventory_allocation_trigger` (D-31) — everything else matches object-for-object. **Still unresolved:** the ledger rewrite between 08-13 and 08-15; the ledger describes the repository, not the database, so drift arithmetic stays withdrawn and object existence remains the only reliable witness. `db push` and `migration repair` **must not be run** — D-32, D-40. |
+| **Athlete-ID sequence** | `athlytica_core.scalable_id_sequence = 504`, **and no longer consulted by either venture issuer** (M6, `20260815081541`). Its only remaining reader is `athlytica_core.generate_scalable_athlete_code`, untouched by design. Left at 504 as evidence of the 4 burned codes. **R4 and R15 closed.** |
 | **Test suite** | `pnpm test` → **210 pass / 0 fail** (178 base + 32 from the uncommitted CRM tests) |
 | **Typecheck** | **clean** |
 
@@ -109,7 +109,7 @@ against. Full analysis: `phase0/ATHLYTICA_FOUNDATION_0_3L_REPORT.md` §6.
 | Surface | State |
 |---|---|
 | `athlytica_core` (4 tables) | RLS **off**, 0 policies — but **no client role holds `USAGE`**, so it is unreachable. Add RLS **without grants** (R17). |
-| `public` (64 tables) | RLS **on** everywhere. **23 have zero policies** (deny-all). Only **2 of 64** have `FORCE RLS`. |
+| `public` (64 tables) | RLS **on** everywhere. **23 have zero policies** (deny-all). Only **2 of 64** have `FORCE RLS` — **and per D-46 that matters far less than it reads**: `postgres` and `service_role` hold `BYPASSRLS`, which beats FORCE, so RLS here governs `authenticated` and nothing else. |
 | `anon` | **no table grants at all** |
 | `authenticated` | full DML on **44 tables + 3 views**, including `athlete`, `guardian_contact`, `registrations`, `users`, `workspace_roles`, `biometric_record`, `injury_record`, `custody_record` |
 
@@ -154,7 +154,7 @@ parent portal can work until the bridge exists. **D-37.**
 | Layer | State |
 |---|---|
 | `athlete_uid` — canonical internal identity | `athlytica_core.athletes`, **empty** |
-| `athlytica_id` — public human-readable ID | **does not exist.** Scheme **APPROVED (D-33 Option C)**: `ATH-NNNNN`, random from `ATH-10000`–`ATH-99999`, legacy reserve `ATH-00001`–`ATH-09999`. Migration written to `supabase/migrations/pending/`, tested, **not applied — gated on D-40**. |
+| `athlytica_id` — public human-readable ID | ✅ **Issuer LIVE in production (D-33 Option C, `20260815081541`).** NRHL draws at random from `ATH-10000`–`ATH-99999`; Big Ice from `BIIF-YYYY-1000`–`9999`; legacy reserves below each. **Neither consumes `scalable_id_sequence`, so R4 and R15 are both closed.** No identifier has been issued yet — both venture tables are still empty. |
 
 **Two identifier planes exist, not one** (0.4, VERIFIED). `public.athlete.passport_id`
 (`text`, UNIQUE, **0 issued**) is the *passport* plane, consumed by
@@ -250,7 +250,8 @@ Each is a human choice, not engineering. The first three gate Phase 0.4.
 
 | ID | Question |
 |---|---|
-| **D-43** | ⛔ **M6 blocker.** Retry-on-23505 is implemented at **none** of the three issuer callers, and `nrhl/ingest` mints a whole batch before inserting — **21.5% intra-batch collision on a 209-athlete legacy import.** Fix the callers before M6 is applied. |
+| **D-46** | ⚠ `FORCE RLS` is bypassed by `postgres`/`service_role` via `BYPASSRLS`. **RLS here governs `authenticated` only** — never describe it as universal protection. Re-grades D-01c down. |
+| **D-47** | Production default grants are **not** reproduced by the migration chain; mirrored by hand for D-35. Capture them in the baseline, or add a grants migration? |
 | **D-42** | `/api/v1/sessions/evaluate` documents a stock-reservation workflow that cannot work. **Recorded only — needs a separate product/architecture decision.** |
 | **D-44** | Baseline omits the `scalable_id_sequence` seed row (schema-only dump). Minor; local reconstruction only. |
 | **D-42** | `/api/v1/sessions/evaluate` documents a stock-reservation workflow that cannot work in production. Delete the sizing branch *(recommended)*, or build the feature. |
