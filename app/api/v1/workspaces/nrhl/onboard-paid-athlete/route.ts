@@ -39,6 +39,7 @@ import { adminClient, serviceRoleConfigured } from "@/lib/auth/workspace";
 import { divisionSchema, kenyanPhoneSchema } from "@/lib/validation/nrhl-schemas";
 import { REGISTRATION_TIERS } from "@/config/registration-fees";
 import { canonicalName } from "@/lib/services/nrhl-etl";
+import { CODE_RETRY_BUDGET, isAthleteCodeCollision } from "@/lib/services/athlete-code-collision";
 import {
   authorizePaymentForService,
   mayCreateCustomerValue,
@@ -173,36 +174,87 @@ export async function POST(request: NextRequest) {
 
   let athleteCode = existing?.athlete_code ? String(existing.athlete_code) : null;
   let minted = false;
-  if (!athleteCode) {
-    const { data: next, error: seqError } = await db.rpc("nrhl_next_athlete_code");
-    if (seqError || typeof next !== "string") {
-      return NextResponse.json(
-        { success: false, error: seqError?.message ?? "Athlete code sequence unavailable." },
-        { status: 500 },
-      );
+
+  // TRANSACTION BOUNDARY, checked before touching this (D-43).
+  //
+  // The upsert below is the ONLY write this route performs after the
+  // authorization gate. `link_guardian` ran above and is idempotent on
+  // phone number; nothing else — no enrolment row, no payment row, no
+  // entitlement — is created here. The upsert itself is idempotent on
+  // `display_name`. So re-running it after a failed attempt cannot
+  // produce a second athlete or a second entitlement: it either inserts
+  // the one row or updates the one row.
+  //
+  // That is what makes retrying safe WITHOUT a transaction. If this route
+  // ever grows a second write, this loop has to be reconsidered.
+  //
+  // What is NOT safe is the old behaviour: `onConflict: "display_name"`
+  // is the wrong conflict target for an athlete_code collision. Under M6
+  // a drawn code can collide with a DIFFERENT athlete's row, and because
+  // that row's display_name does not match, the upsert falls through to
+  // an INSERT and dies on nrhl_athlete_pkey — a 500 to a family that has
+  // already paid, for a condition the server can simply resolve by
+  // drawing again.
+  let upsertError: { code?: string; message: string } | null = null;
+
+  for (let attempt = 1; attempt <= CODE_RETRY_BUDGET; attempt++) {
+    if (!athleteCode) {
+      const { data: next, error: seqError } = await db.rpc("nrhl_next_athlete_code");
+      if (seqError || typeof next !== "string") {
+        return NextResponse.json(
+          { success: false, error: seqError?.message ?? "Athlete code sequence unavailable." },
+          { status: 500 },
+        );
+      }
+      athleteCode = next.trim();
+      minted = true;
     }
-    athleteCode = next.trim();
-    minted = true;
+
+    const { error } = await db.from("nrhl_athlete").upsert(
+      {
+        athlete_code: athleteCode,
+        display_name: name,
+        division: input.preferredConference ?? null,
+        guardian_name: input.guardianName,
+        guardian_email: input.guardianEmail,
+        guardian_phone_e164: input.guardianPhone,
+        core_parent_id: coreParentId,
+        consent_media: input.consentMedia ?? null,
+        consent_recorded_at: input.consentMedia ? new Date().toISOString() : null,
+        identity_note: `Onboarded from a paid ${input.tier} registration (receipt ${input.mpesaReceipt}).`,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "display_name" },
+    );
+
+    if (!error) {
+      upsertError = null;
+      break;
+    }
+    upsertError = error;
+
+    // Redraw ONLY for a code collision, and only for a code we minted.
+    // A code that came from `existing` belongs to this display_name, so
+    // the upsert updates that row and can never raise the PK.
+    if (minted && isAthleteCodeCollision(error, "nrhl")) {
+      athleteCode = null; // force a fresh draw
+      continue;
+    }
+    break; // a genuine display-name clash, or anything else, stands
   }
 
-  const { error: upsertError } = await db.from("nrhl_athlete").upsert(
-    {
-      athlete_code: athleteCode,
-      display_name: name,
-      division: input.preferredConference ?? null,
-      guardian_name: input.guardianName,
-      guardian_email: input.guardianEmail,
-      guardian_phone_e164: input.guardianPhone,
-      core_parent_id: coreParentId,
-      consent_media: input.consentMedia ?? null,
-      consent_recorded_at: input.consentMedia ? new Date().toISOString() : null,
-      identity_note: `Onboarded from a paid ${input.tier} registration (receipt ${input.mpesaReceipt}).`,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "display_name" },
-  );
   if (upsertError) {
-    return NextResponse.json({ success: false, error: upsertError.message }, { status: 500 });
+    const bandSaturating = isAthleteCodeCollision(upsertError, "nrhl");
+    return NextResponse.json(
+      {
+        success: false,
+        error: bandSaturating
+          ? `Athlete code collided ${CODE_RETRY_BUDGET} times in a row — the ATH issuance band is saturating.`
+          : upsertError.message,
+        athleteCode: null,
+      },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({

@@ -24,6 +24,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { adminClient, requireWorkspaceRole } from "@/lib/auth/workspace";
 import { ingestRequestSchema } from "@/lib/validation/nrhl-schemas";
+import { CODE_RETRY_BUDGET } from "@/lib/services/athlete-code-collision";
 import {
   COMPOSITE_FORMULA_VERSION,
   POINT_FORMULA_VERSION,
@@ -137,22 +138,76 @@ export async function POST(request: NextRequest) {
     (existing ?? []).map((r) => [String(r.display_name), String(r.athlete_code)]),
   );
 
+  // RESERVATION SET (D-43). Under M6 the issuer draws at random and its
+  // own probe reads `nrhl_athlete` — so it can see codes that are already
+  // COMMITTED and cannot see codes minted earlier in THIS batch, which are
+  // still only in memory. That second blind spot is the dangerous one:
+  // this importer mints every code before inserting anything, so two
+  // athletes in one run could be handed the same code and the batch upsert
+  // would then die on nrhl_athlete_pkey.
+  //
+  // Measured before the fix: P(at least one intra-batch collision) is 1.4%
+  // at 50 athletes, 5.4% at 100, and 21.5% at 209 — and 209 is the legacy
+  // corpus, i.e. the largest planned use of this importer.
+  //
+  // A retry around the batch insert does not fix this; it just re-rolls
+  // the same dice. Instead every code this run will use is held in a set,
+  // seeded with every code already in the database, and a draw is only
+  // accepted if the set does not already hold it. Intra-batch duplicates
+  // therefore cannot be produced at all, rather than being detected later.
+  //
+  // The two collision sources stay separately handled: the set covers
+  // in-flight codes, the issuer's own probe plus the PRIMARY KEY cover
+  // committed rows.
+  const reservedCodes = new Set<string>(
+    (existing ?? []).map((r) => String(r.athlete_code)),
+  );
+
+  /** Draw a code no other athlete in this batch or the database is using. */
+  async function mintUnreservedCode(): Promise<
+    { code: string } | { error: string } | { exhausted: true }
+  > {
+    for (let attempt = 1; attempt <= CODE_RETRY_BUDGET; attempt++) {
+      const { data: next, error: seqError } = await db.rpc("nrhl_next_athlete_code");
+      if (seqError || typeof next !== "string") {
+        return { error: seqError?.message ?? "Athlete code sequence unavailable." };
+      }
+      const candidate = next.trim();
+      if (!reservedCodes.has(candidate)) return { code: candidate };
+    }
+    return { exhausted: true };
+  }
+
   const minted: { athlete: string; code: string }[] = [];
   const athleteRows: Record<string, unknown>[] = [];
 
   for (const a of report.athletes) {
+    // Idempotency is unchanged: an athlete already in the database keeps
+    // its code, and a legacy row's assignedCode is honoured as before. A
+    // re-import of a successful run mints nothing.
     let code = codeByName.get(a.canonicalName) ?? a.assignedCode;
     if (!code) {
-      const { data: next, error: seqError } = await db.rpc("nrhl_next_athlete_code");
-      if (seqError || typeof next !== "string") {
+      const drawn = await mintUnreservedCode();
+      if ("error" in drawn) {
+        return NextResponse.json({ success: false, error: drawn.error }, { status: 500 });
+      }
+      if ("exhausted" in drawn) {
         return NextResponse.json(
-          { success: false, error: seqError?.message ?? "Athlete code sequence unavailable." },
+          {
+            success: false,
+            error:
+              `Athlete code collided ${CODE_RETRY_BUDGET} times in a row while importing ` +
+              `${a.canonicalName} — the ATH issuance band is saturating. No athlete was written.`,
+          },
           { status: 500 },
         );
       }
-      code = next.trim();
+      code = drawn.code;
       minted.push({ athlete: a.canonicalName, code });
     }
+    // Reserve it whether it was drawn, carried from the database, or
+    // supplied as a legacy code — all three occupy the same namespace.
+    reservedCodes.add(code);
     codeByName.set(a.canonicalName, code);
 
     athleteRows.push({

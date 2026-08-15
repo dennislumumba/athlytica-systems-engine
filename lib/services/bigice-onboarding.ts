@@ -30,6 +30,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { REGISTRATION_TIERS } from "../../config/registration-fees.ts";
 import { matchAthlete, normaliseName, type AthleteCandidate } from "./bigice-athlete.ts";
+import {
+  CODE_RETRY_BUDGET,
+  IDENTITY_CONSTRAINT,
+  isAthleteCodeCollision,
+  isConstraintViolation,
+} from "./athlete-code-collision.ts";
 
 export type BigIceOnboardingOutcome =
   | { onboarded: true; biifCode: string; minted: boolean; returning: boolean }
@@ -46,8 +52,9 @@ interface RegistrationRow {
   amount_expected_kes: number | string | null;
 }
 
-/** Postgres unique_violation — the last-line duplicate guard firing. */
-const UNIQUE_VIOLATION = "23505";
+// Unique-violation handling moved to lib/services/athlete-code-collision.ts
+// (D-43): a bare 23505 cannot tell a code collision from a household
+// clash, and the two need opposite responses.
 
 /**
  * /register writes `academy_<uuid>` for a commercial_price_tier package
@@ -187,40 +194,72 @@ export async function onboardBigIceAthlete(
         await db.from("bigice_athlete").update(patch).eq("biif_code", biifCode);
       }
     } else {
-      const { data: next, error: seqError } = await db.rpc("bigice_next_athlete_code");
-      if (seqError || typeof next !== "string") {
+      // Draw a code, try to insert, and redraw ONLY if the primary key
+      // rejected the code itself (D-43). Under M6 the issuer draws at
+      // random from a reserved band and its own probe is advisory, so a
+      // collision is an expected outcome rather than a fault — but a
+      // collision on `uq_bigice_athlete_identity` is a different event
+      // entirely (two children, one household) and must keep its
+      // existing review semantics.
+      let insertError: { code?: string; message: string } | null = null;
+      let committedCode: string | null = null;
+
+      for (let attempt = 1; attempt <= CODE_RETRY_BUDGET; attempt++) {
+        const { data: next, error: seqError } = await db.rpc("bigice_next_athlete_code");
+        if (seqError || typeof next !== "string") {
+          return {
+            onboarded: false,
+            reviewRequired: false,
+            reason: `athlete code sequence unavailable: ${seqError?.message ?? "no code returned"}`,
+          };
+        }
+        const candidate = next.trim();
+
+        const { error } = await db.from("bigice_athlete").insert({
+          biif_code: candidate,
+          full_name: athleteName,
+          guardian_name: row.full_name,
+          guardian_email: row.email,
+          guardian_msisdn_hash: msisdnHash,
+          origin: "REGISTRATION",
+          identity_note: `Minted on settlement of receipt ${receipt}.`,
+        });
+
+        if (!error) {
+          // Assigned only on a committed insert, so an exhausted budget
+          // can never leave a half-created athlete carrying a code that
+          // was never written.
+          committedCode = candidate;
+          insertError = null;
+          break;
+        }
+
+        insertError = error;
+        if (isAthleteCodeCollision(error, "bigice")) continue; // redraw
+        break; // anything else — including the household clash — stands
+      }
+
+      if (insertError || committedCode === null) {
+        const householdClash = isConstraintViolation(
+          insertError,
+          IDENTITY_CONSTRAINT.bigiceHousehold,
+        );
         return {
           onboarded: false,
-          reviewRequired: false,
-          reason: `athlete code sequence unavailable: ${seqError?.message ?? "no code returned"}`,
+          // Unchanged: a household clash is still a review case. What has
+          // changed is that a code collision is no longer misreported as
+          // one — it used to be, because the old branch keyed on the bare
+          // SQLSTATE and both constraints raise 23505.
+          reviewRequired: householdClash,
+          reason: householdClash
+            ? `an athlete named ${athleteName} already exists with no household contact to distinguish them`
+            : isAthleteCodeCollision(insertError, "bigice")
+              ? `athlete code collided ${CODE_RETRY_BUDGET} times in a row — the BIIF issuance band is saturating`
+              : `athlete insert failed: ${insertError?.message ?? "no code was committed"}`,
         };
       }
-      biifCode = next.trim();
 
-      const { error: insertError } = await db.from("bigice_athlete").insert({
-        biif_code: biifCode,
-        full_name: athleteName,
-        guardian_name: row.full_name,
-        guardian_email: row.email,
-        guardian_msisdn_hash: msisdnHash,
-        origin: "REGISTRATION",
-        identity_note: `Minted on settlement of receipt ${receipt}.`,
-      });
-
-      if (insertError) {
-        // The unique index caught a duplicate the matcher did not — two
-        // same-named children with no household hash to separate them.
-        // Deliberately fails closed rather than merging their records.
-        const code = (insertError as { code?: string }).code;
-        return {
-          onboarded: false,
-          reviewRequired: code === UNIQUE_VIOLATION,
-          reason:
-            code === UNIQUE_VIOLATION
-              ? `an athlete named ${athleteName} already exists with no household contact to distinguish them`
-              : `athlete insert failed: ${insertError.message}`,
-        };
-      }
+      biifCode = committedCode;
       minted = true;
     }
 
